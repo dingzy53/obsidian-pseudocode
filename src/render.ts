@@ -1,6 +1,6 @@
 import { tokenize, type Model, type Token } from "./parse.ts";
 
-// Builds a DOM node for `$tex$`. Injected so this file never depends on Obsidian.
+// Builds a DOM node for `$tex$`. Injected so rendering never touches MathJax directly.
 export type MathFn = (tex: string) => Node;
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -9,11 +9,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
   cls: string,
   text?: string,
 ): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  e.className = cls;
-  if (text !== undefined) e.textContent = text;
-  parent.appendChild(e);
-  return e;
+  return parent.createEl(tag, { cls, text });
 }
 
 function appendTokens(parent: HTMLElement, tokens: Token[], math: MathFn): void {
@@ -53,7 +49,7 @@ export function render(model: Model, root: HTMLElement, math: MathFn): void {
     const grid = el(box, "div", "algo-io");
     for (const [label, value] of io) {
       el(grid, "span", "algo-io-label", label);
-      appendTokens(el(grid, "span", "algo-io-value"), tokenize(value!, true), math);
+      appendTokens(el(grid, "span", "algo-io-value"), tokenize(value, true), math);
     }
   }
 

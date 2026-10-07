@@ -1,9 +1,6 @@
 # Plain Pseudocode
 
-An Obsidian plugin that renders pseudocode as **plain text**: centred, line-numbered, with bold keywords and indentation guides.
-No LaTeX, no images, no runtime dependencies, just Obsidian.
-
-The source stays readable when unrendered, and indentation *is* the structure.
+Write pseudocode as plain indented text in Obsidian and get a centred, line-numbered block with bold keywords and indentation guides. Rendering is pure text: no LaTeX, no images, no dependencies.
 
 ````
 ```algo
@@ -25,38 +22,27 @@ return -1
 
 ## Syntax
 
-| Line | Meaning |
-|---|---|
-| 1 | Title (algorithm / statement name) |
-| 2 | Input. The `Input:` prefix is optional. Leave it empty or write `-` to hide the row. |
-| 3 | Output. The `Output:` prefix is optional. Same rules. |
-| 4+ | Steps. Every non-blank line gets a line number. Blank lines are spacers. |
-
-- **Indentation** sets nesting. Tabs, 2 spaces or 4 spaces all work.
-- **Keywords** are bold: `if then else elif for foreach while do repeat until loop return break continue function procedure end and or not true false null nil`.
-  On `for` lines, `to downto in each all by step` are bold too.
-- **Symbols:** `<-` → ←, `->` → →, `<=` → ≤, `>=` → ≥, `!=` → ≠.
-- **Comments:** `// text` renders as `▷ text` in muted italics.
-- **Math:** `$x_i$` is rendered with Obsidian's built-in MathJax. Use `\$` for a literal dollar sign.
-- **Function calls:** `Merge-Sort(A)` (capitalised, followed by `(`) is shown in small caps.
+- **Line 1** is the title, **line 2** the input and **line 3** the output. The `Input:` and `Output:` prefixes are optional, and an empty value or `-` hides the row.
+- **Line 4 onwards** are the steps. Each non-blank line is numbered, and indentation (tabs, 2 or 4 spaces) sets the nesting.
+- Keywords such as `if then else for while do repeat until return function and or not` are bold. On `for` lines, `to downto in each all by step` are bold too.
+- `<-` `->` `<=` `>=` `!=` become ← → ≤ ≥ ≠.
+- `// text` becomes a muted `▷ text` comment.
+- `$x_i$` is rendered with Obsidian's built-in math. Use `\$` for a literal dollar sign.
+- `Merge-Sort(A)` (capitalised, followed by `(`) is shown in small caps.
 
 ## Quick input
 
-- Command **Insert pseudocode block** (bind it to a hotkey in *Settings → Hotkeys*) inserts the template with the title selected.
-- Inside an `algo` block, **Enter** keeps the current indentation and adds one level after a line ending in `do`, `then`, `else`, `repeat`, `loop` or `:`, or starting with `function` / `procedure`. Elsewhere Enter is untouched.
-
-## Styling
-
-Colours and fonts follow your theme. Override any `.algo-*` rule (see `styles.css`) from a CSS snippet.
+- Run **Insert pseudocode block** from the command palette (bind it to a hotkey under **Settings → Hotkeys**).
+- Inside an `algo` block, **Enter** keeps the indentation and adds a level after a line ending in `do`, `then`, `else`, `repeat`, `loop` or `:`.
 
 ## Install
 
-Copy `main.js`, `manifest.json` and `styles.css` from a release into `<vault>/.obsidian/plugins/plain-pseudocode/`, then enable the plugin. BRAT also works with this repository.
+Search for **Plain Pseudocode** under **Settings → Community plugins → Browse**. To install manually, download `main.js`, `manifest.json` and `styles.css` (or the zip) from the [latest release](../../releases/latest) into `<vault>/.obsidian/plugins/plain-pseudocode/` and enable the plugin.
 
-## Develop
+## Styling
 
-```
-npm install
-npm test        # parser + smart-Enter tests
-npm run build   # type-check and bundle to main.js
-```
+Colours and fonts follow your theme. Override any `.algo-*` rule from a CSS snippet (see `styles.css`).
+
+## License
+
+[MIT](LICENSE)

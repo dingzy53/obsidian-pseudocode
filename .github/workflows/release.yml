@@ -1,26 +1,71 @@
 name: Release
 
+# Push a tag equal to the manifest version (no "v" prefix), e.g. `npm version patch && git push --follow-tags`.
 on:
   push:
     tags:
       - "*"
 
-permissions:
-  contents: write
-
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
-      - name: Publish release
+
+      - name: Check tag matches manifest version
+        run: |
+          node -e '
+            const read = (f) => JSON.parse(require("fs").readFileSync(f, "utf8"));
+            const tag = process.env.GITHUB_REF_NAME;
+            const manifest = read("manifest.json").version;
+            const pkg = read("package.json").version;
+            const versions = read("versions.json");
+            const errors = [];
+            if (tag !== manifest) errors.push(`tag ${tag} != manifest.json version ${manifest}`);
+            if (tag !== pkg) errors.push(`tag ${tag} != package.json version ${pkg}`);
+            if (!versions[tag]) errors.push(`versions.json has no entry for ${tag}`);
+            if (errors.length) { errors.forEach((e) => console.error("::error::" + e)); process.exit(1); }
+          '
+
+      - name: Install, lint, test, build
+        run: |
+          npm ci
+          npm run lint
+          npm test
+          npm run build
+
+      - name: Package zip
+        id: zip
+        run: |
+          id=$(node -p 'JSON.parse(require("fs").readFileSync("manifest.json", "utf8")).id')
+          mkdir "$id"
+          cp main.js manifest.json styles.css "$id"/
+          zip -r "$id-$GITHUB_REF_NAME.zip" "$id"
+          echo "file=$id-$GITHUB_REF_NAME.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+            ${{ steps.zip.outputs.file }}
+
+      - name: Create release
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" main.js manifest.json styles.css --title "${{ github.ref_name }}" --generate-notes
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            main.js manifest.json styles.css "${{ steps.zip.outputs.file }}"

@@ -46,8 +46,8 @@ function headerValue(line: string | undefined, label: RegExp): string {
 
 export function parse(source: string): Model {
   const lines = source.replace(/\r\n?/g, "\n").split("\n");
-  while (lines.length && !lines[0]!.trim()) lines.shift();
-  while (lines.length && !lines[lines.length - 1]!.trim()) lines.pop();
+  while (lines.length && !lines[0].trim()) lines.shift();
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
 
   const rest = lines.slice(3).map((l) => expandTabs(l.trimEnd()));
   const indentOf = (l: string) => l.length - l.trimStart().length;
@@ -83,8 +83,8 @@ export function tokenize(text: string, plain = false): Token[] {
 
   for (const m of text.matchAll(INLINE)) {
     const s = m[0];
-    if (m.index! > last) push({ t: "text", v: text.slice(last, m.index) });
-    last = m.index! + s.length;
+    if (m.index > last) push({ t: "text", v: text.slice(last, m.index) });
+    last = m.index + s.length;
 
     if (s === "\\$") push({ t: "text", v: "$" });
     else if (m[1] !== undefined) push({ t: "math", v: m[1] });
@@ -93,7 +93,7 @@ export function tokenize(text: string, plain = false): Token[] {
       if (prev && prev.t === "text") prev.v = prev.v.trimEnd();
       push({ t: "comment", c: tokenize(m[2].trim(), true) });
     }
-    else if (SYMBOLS[s]) push({ t: "sym", v: SYMBOLS[s]! });
+    else if (SYMBOLS[s]) push({ t: "sym", v: SYMBOLS[s] });
     else {
       const w = s.toLowerCase();
       if (plain) push({ t: "text", v: s });
