@@ -45,7 +45,7 @@ git push --follow-tags
 
 `.npmrc` sets `tag-version-prefix=""` so the tag is a bare `x.y.z`. Update `minAppVersion` in `manifest.json` by hand first if a newer Obsidian API is used.
 
-The workflow checks that tag, `manifest.json`, `package.json` and `versions.json` agree, then lints, tests and builds. It attests the build and publishes a GitHub release with `main.js`, `manifest.json`, `styles.css` and `plain-pseudocode-<version>.zip`. Obsidian reads the three loose files, and the zip is for manual install.
+The workflow checks that tag, `manifest.json`, `package.json` and `versions.json` agree, then lints, tests and builds. It attests `main.js` and `styles.css` (the same shape as Obsidian's sample plugin) and publishes a GitHub release with exactly `main.js`, `manifest.json` and `styles.css`. Do not attach other files or attest more subjects: the directory's review flags extra assets and rejected a combined attestation.
 
 ## Submitting to the community directory (first release only)
 

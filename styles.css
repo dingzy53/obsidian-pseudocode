@@ -29,7 +29,6 @@
 .algo-io {
   display: grid;
   grid-template-columns: auto 1fr;
-  column-gap: 0.8em;
   padding-bottom: 0.3em;
   margin-bottom: 0.3em;
   border-bottom: 1px solid var(--background-modifier-border);
@@ -37,6 +36,7 @@
 
 .algo-io-label {
   font-weight: 700;
+  margin-right: 0.8em;
 }
 
 .algo-line {
