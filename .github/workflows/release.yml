@@ -43,23 +43,12 @@ jobs:
           npm test
           npm run build
 
-      - name: Package zip
-        id: zip
-        run: |
-          id=$(node -p 'JSON.parse(require("fs").readFileSync("manifest.json", "utf8")).id')
-          mkdir "$id"
-          cp main.js manifest.json styles.css "$id"/
-          zip -r "$id-$GITHUB_REF_NAME.zip" "$id"
-          echo "file=$id-$GITHUB_REF_NAME.zip" >> "$GITHUB_OUTPUT"
-
       - name: Attest build provenance
         uses: actions/attest@v4
         with:
           subject-path: |
             main.js
-            manifest.json
             styles.css
-            ${{ steps.zip.outputs.file }}
 
       - name: Create release
         env:
@@ -68,4 +57,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes \
-            main.js manifest.json styles.css "${{ steps.zip.outputs.file }}"
+            main.js manifest.json styles.css
