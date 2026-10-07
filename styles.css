@@ -1,0 +1,88 @@
+/* Plain Pseudocode: everything is theme-variable driven, so light/dark just work.
+   Override any rule below from a CSS snippet. */
+
+.algo {
+  display: flex;
+  justify-content: center;
+  margin: 1em 0;
+}
+
+.algo-box {
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  box-sizing: border-box;
+  padding: 0.3em 0.8em;
+  border-top: 2px solid var(--text-normal);
+  border-bottom: 2px solid var(--text-normal);
+  font-family: var(--font-text);
+  line-height: 1.55;
+}
+
+.algo-title {
+  font-weight: 700;
+  padding-bottom: 0.3em;
+  margin-bottom: 0.3em;
+  border-bottom: 1px solid var(--text-normal);
+}
+
+.algo-io {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.8em;
+  padding-bottom: 0.3em;
+  margin-bottom: 0.3em;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.algo-io-label {
+  font-weight: 700;
+}
+
+.algo-line {
+  display: flex;
+  align-items: stretch;
+}
+
+.algo-blank {
+  height: 0.6em;
+}
+
+.algo-ln {
+  flex: none;
+  box-sizing: content-box;
+  width: var(--algo-ln-w, 1ch);
+  padding-right: 0.8em;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.85em;
+  line-height: inherit;
+  user-select: none;
+}
+
+.algo-indent {
+  flex: none;
+  width: 1.6em;
+  border-left: 1px solid var(--background-modifier-border);
+}
+
+.algo-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.algo-kw {
+  font-weight: 700;
+}
+
+.algo-fn {
+  font-variant: small-caps;
+}
+
+.algo-comment {
+  margin-left: 0.4em;
+  color: var(--text-muted);
+  font-style: italic;
+}
