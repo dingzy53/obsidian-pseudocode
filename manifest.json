@@ -1,0 +1,10 @@
+{
+  "id": "plain-pseudocode",
+  "name": "Plain Pseudocode",
+  "version": "0.1.0",
+  "minAppVersion": "1.0.0",
+  "description": "Write pseudocode as plain indented text and render it as a centred, line-numbered text block. No LaTeX, no images.",
+  "author": "dingzy53",
+  "authorUrl": "https://github.com/dingzy53",
+  "isDesktopOnly": false
+}

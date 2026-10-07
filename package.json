@@ -1,0 +1,24 @@
+{
+  "name": "plain-pseudocode",
+  "version": "0.1.0",
+  "description": "Write pseudocode as plain indented text; render it as a centred, line-numbered text block.",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "test": "node --experimental-strip-types --test \"test/*.test.ts\"",
+    "version": "node version-bump.mjs && git add manifest.json versions.json"
+  },
+  "keywords": ["obsidian", "obsidian-plugin", "pseudocode", "algorithm"],
+  "license": "MIT",
+  "devDependencies": {
+    "@codemirror/language": "^6.11.0",
+    "@codemirror/state": "6.5.0",
+    "@codemirror/view": "6.38.6",
+    "@types/node": "^22.15.17",
+    "esbuild": "^0.25.5",
+    "obsidian": "latest",
+    "typescript": "^5.8.3"
+  }
+}
