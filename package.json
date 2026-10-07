@@ -1,6 +1,6 @@
 {
   "name": "plain-pseudocode",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Write pseudocode as plain indented text; render it as a centred, line-numbered text block.",
   "main": "main.js",
   "type": "module",
