@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { parse } from "../src/parse.ts";
 import { DEFAULT_SNIPPETS, expand, matchSnippet, parseSnippets } from "../src/snippets.ts";
 
 const one = (json: string) => {
@@ -12,21 +13,47 @@ const one = (json: string) => {
 test("default definitions load", () => {
   const { snippets, error } = parseSnippets(DEFAULT_SNIPPETS);
   assert.equal(error, null);
-  assert.equal(snippets.length, 1);
   assert.deepEqual(
-    { trigger: snippets[0].trigger, auto: snippets[0].auto, lineStart: snippets[0].lineStart },
-    { trigger: "for ", auto: true, lineStart: true },
+    snippets.map((s) => [s.trigger, s.auto, s.lineStart, s.where, s.note]),
+    [["for ", true, true, null, false], ["mk", true, false, "text", false], ["algo ", true, true, null, true]],
   );
+  assert.equal(expand(snippets[2].replacement, [], "", "").text, "```algo\n\nInput: \nOutput: \n\n```");
+  // Dollar, tabstop 0, dollar, space, tabstop 1.
+  assert.deepEqual(expand(snippets[1].replacement, [], "", ""), {
+    text: "$$ ",
+    stops: [[{ from: 1, to: 1 }], [{ from: 3, to: 3 }]],
+  });
+});
+
+test("the block from the algo snippet reads as an untitled block", () => {
+  const { text, stops } = expand(parseSnippets(DEFAULT_SNIPPETS).snippets[2].replacement, [], "", "");
+  const body = (source: string) => source.split("\n").slice(1, -1).join("\n");
+  assert.deepEqual(parse(body(text)), { title: "", fields: [], steps: [] });
+
+  // Fill in the last three tabstops (input, output, first step) and leave the title empty.
+  let filled = text;
+  for (const [stop, value] of [[3, "return A"], [2, "sorted A"], [1, "array A"]] as const) {
+    const at = stops[stop][0].from;
+    filled = filled.slice(0, at) + value + filled.slice(at);
+  }
+  const model = parse(body(filled));
+  assert.equal(model.title, "");
+  assert.deepEqual(model.fields, [
+    { label: "Input", value: "array A" },
+    { label: "Output", value: "sorted A" },
+  ]);
+  assert.deepEqual(model.steps.map((s) => s.text), ["return A"]);
 });
 
 test("the README example loads", () => {
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
-  const blocks = [...readme.matchAll(/```jsonc\n([\s\S]*?)```/g)].map((m) => m[1]);
+  // The closing fence is the one at the start of a line: the example has backticks of its own.
+  const blocks = [...readme.matchAll(/```jsonc\n([\s\S]*?)\n```/g)].map((m) => m[1]);
   assert.ok(blocks.length > 0);
   for (const block of blocks) {
     const { snippets, error } = parseSnippets(block);
     assert.equal(error, null);
-    assert.ok(snippets.length > 0);
+    assert.ok(snippets.length > 10);
   }
 });
 
@@ -59,6 +86,7 @@ test("mistakes are reported and nothing is half-applied", () => {
   assert.match(bad('[{ "trigger": "a" }]'), /Snippet 1: "replacement"/);
   assert.match(bad('[{ "trigger": "a", "replacement": "b", "options": "Ax" }]'), /unknown option "x"/);
   assert.match(bad('[{ "trigger": "(", "replacement": "b", "options": "r" }]'), /regular expression/);
+  assert.match(bad('[{ "trigger": "a", "replacement": "b", "options": "mt" }]'), /not both/);
   assert.match(bad("[3]"), /Snippet 1/);
 });
 
@@ -78,6 +106,25 @@ test("matching: b only at the start of the line", () => {
   assert.equal(matchSnippet(list, "wait for ", "", false), null);
 });
 
+test("matching: Tab also takes a trigger without its closing space", () => {
+  const list = one('{ "trigger": "for ", "replacement": "", "options": "Ab" }');
+  assert.equal(matchSnippet(list, "  for", "", false)?.length, 3);
+  assert.equal(matchSnippet(list, "  for", "", true), null);
+  assert.equal(matchSnippet(list, "foreach", "", false), null);
+  assert.equal(matchSnippet(list, "wait for", "", false), null);
+  assert.equal(matchSnippet(one('{ "trigger": " ", "replacement": "x" }'), "a", "", false), null);
+});
+
+test("matching: the caller can refuse a snippet and let a later one through", () => {
+  const list = [
+    ...one('{ "trigger": "x", "replacement": "note", "options": "n" }'),
+    ...one('{ "trigger": "x", "replacement": "block" }'),
+  ];
+  assert.equal(matchSnippet(list, "x", "", false, (s) => s.note)?.snippet.replacement, "note");
+  assert.equal(matchSnippet(list, "x", "", false, (s) => !s.note)?.snippet.replacement, "block");
+  assert.equal(matchSnippet(list, "x", "", false, () => false), null);
+});
+
 test("matching: w needs word boundaries on both sides", () => {
   const list = one('{ "trigger": "inf", "replacement": "", "options": "w" }');
   assert.ok(matchSnippet(list, "x <- inf", "", false));
@@ -86,10 +133,17 @@ test("matching: w needs word boundaries on both sides", () => {
   assert.equal(matchSnippet(list, "x <- inf", "o", false), null);
 });
 
-test("matching: never inside a comment", () => {
-  const list = one('{ "trigger": "inf", "replacement": "" }');
-  assert.equal(matchSnippet(list, "x // inf", "", false), null);
-  assert.ok(matchSnippet(one('{ "trigger": "//", "replacement": "" }'), "x //", "", false));
+test("matching: m only inside math, t only outside", () => {
+  const math = one('{ "trigger": "sr", "replacement": "^2", "options": "m" }');
+  assert.ok(matchSnippet(math, "x <- $asr", "", false));
+  assert.equal(matchSnippet(math, "x <- asr", "", false), null);
+  assert.equal(matchSnippet(math, "$a$ and sr", "", false), null);
+  assert.equal(matchSnippet(math, "cost \\$5 sr", "", false), null);
+
+  const text = one('{ "trigger": "mk", "replacement": "", "options": "t" }');
+  assert.ok(matchSnippet(text, "x <- mk", "", false));
+  assert.ok(matchSnippet(text, "$a$ // mk", "", false));
+  assert.equal(matchSnippet(text, "x <- $amk", "", false), null);
 });
 
 test("matching: regex groups", () => {

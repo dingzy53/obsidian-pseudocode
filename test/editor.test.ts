@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { EditorState } from "@codemirror/state";
 import { indentUnit } from "@codemirror/language";
-import { algoEditor, expandOnInput, smartEnter, snippetShiftTab, snippetTab } from "../src/editor.ts";
+import { algoEditor, expandAtCursor, expandOnInput, smartEnter, snippetShiftTab, snippetTab } from "../src/editor.ts";
 import { parseSnippets, DEFAULT_SNIPPETS } from "../src/snippets.ts";
 
 // Minimal stand-in for EditorView: state + dispatch, which is all the handlers use.
@@ -112,6 +112,18 @@ test("default snippet: for + space expands and Tab walks the values", () => {
   assert.equal(snippetTab(e.view, DEFAULTS), false);
 });
 
+test("default snippet: for + Tab expands too, without the space", () => {
+  const e = editor(block("    |"));
+  e.type("for");
+  assert.equal(steps(e.show()), "    for|");
+  assert.ok(snippetTab(e.view, DEFAULTS));
+  assert.equal(steps(e.show()), "    for [i] from 1 to n");
+
+  const other = editor(block("|"));
+  other.type("foreach");
+  assert.equal(snippetTab(other.view, DEFAULTS), false);
+});
+
 test("default snippet leaves other words and places alone", () => {
   const typed = (doc: string, text: string) => {
     const e = editor(doc);
@@ -123,9 +135,94 @@ test("default snippet leaves other words and places alone", () => {
   assert.equal(steps(typed(block("wait |"), "for ")), "wait for |");
   assert.equal(steps(typed(block("x // |"), "for ")), "x // for |");
   assert.equal(typed("|", "for "), "for |");
+  assert.equal(typed("|", "mk"), "mk|");
   assert.equal(typed("```python\n|\n```", "for "), "```python\nfor |\n```");
-  assert.equal(typed("```algo\n|\nInput: A\nOutput: A\n```", "for "), "```algo\nfor |\nInput: A\nOutput: A\n```");
   assert.equal(typed(block("x") + "\n|", "for "), block("x") + "\nfor |");
+});
+
+test("snippets work on every line of the block, header and comments included", () => {
+  const typed = (doc: string, text: string) => {
+    const e = editor(doc);
+    e.type(text);
+    return e.show();
+  };
+  assert.equal(typed("```algo\n|\n```", "for "), "```algo\nfor [i] from 1 to n\n```");
+  assert.equal(typed("```algo\nSort\nInput: array |\nOutput: A\n```", "mk"), "```algo\nSort\nInput: array $|$ \nOutput: A\n```");
+  assert.equal(steps(typed(block("x <- 1 // |"), "mk")), "x <- 1 // $|$ ");
+});
+
+test("default snippet: mk makes inline math and Tab leaves it", () => {
+  const e = editor(block("x <- |"));
+  e.type("mk");
+  assert.equal(steps(e.show()), "x <- $|$ ");
+  e.type("a_i");
+  assert.ok(snippetTab(e.view, DEFAULTS));
+  assert.equal(steps(e.show()), "x <- $a_i$ |");
+  // Nothing is left to fill in, so Tab is free again and typing is just typing.
+  assert.equal(snippetTab(e.view, DEFAULTS), false);
+  e.type("+ 1");
+  assert.equal(steps(e.show()), "x <- $a_i$ + 1|");
+});
+
+test("mk does not fire inside math", () => {
+  const e = editor(block("x <- $|$"));
+  e.type("mk");
+  assert.equal(steps(e.show()), "x <- $mk|$");
+});
+
+test("a snippet inside a tabstop of another: Tab returns to the outer one", () => {
+  const e = editor(block("|"));
+  e.type("for mk");
+  assert.equal(steps(e.show()), "for $|$  from 1 to n");
+  e.type("i");
+  snippetTab(e.view, DEFAULTS);
+  assert.equal(steps(e.show()), "for $i$ | from 1 to n");
+  snippetTab(e.view, DEFAULTS);
+  assert.equal(steps(e.show()), "for $i$  from [1] to n");
+  snippetTab(e.view, DEFAULTS);
+  assert.equal(steps(e.show()), "for $i$  from 1 to [n]");
+  snippetTab(e.view, DEFAULTS);
+  assert.equal(snippetTab(e.view, DEFAULTS), false);
+});
+
+test("editing outside the current value ends the snippet", () => {
+  // Undoing or deleting the expansion must not leave tabstops behind for Tab to jump to.
+  const deleted = editor(block("|"));
+  deleted.type("for ");
+  const line = deleted.view.state.doc.line(5);
+  deleted.view.dispatch({ changes: { from: line.from, to: line.to, insert: "for x in S:" }, selection: { anchor: line.from + 11 } });
+  assert.equal(snippetTab(deleted.view, DEFAULTS), false);
+  assert.equal(steps(deleted.show()), "for x in S:|");
+
+  const elsewhere = editor(block("|"));
+  elsewhere.type("for k");
+  elsewhere.view.dispatch({ changes: { from: elsewhere.view.state.doc.line(5).to, insert: ":" } });
+  assert.equal(snippetTab(elsewhere.view, DEFAULTS), false);
+
+  const undone = editor(block("|"));
+  undone.type("for k");
+  snippetTab(undone.view, DEFAULTS);
+  undone.type("0");
+  const pos = undone.view.state.selection.main.head;
+  undone.view.dispatch({ changes: { from: pos - 1, to: pos }, userEvent: "undo" });
+  assert.equal(snippetTab(undone.view, DEFAULTS), false);
+});
+
+test("moving the cursor out of the current value ends the snippet", () => {
+  const e = editor(block("|"));
+  e.type("for ");
+  e.view.dispatch({ selection: { anchor: e.view.state.doc.line(5).to } });
+  assert.equal(snippetTab(e.view, DEFAULTS), false);
+});
+
+test("a trigger that is already in the document expands too (input methods)", () => {
+  const e = editor(block("    for |"));
+  assert.ok(expandAtCursor(e.view, DEFAULTS));
+  assert.equal(steps(e.show()), "    for [i] from 1 to n");
+  assert.equal(expandAtCursor(e.view, DEFAULTS), false);
+
+  assert.equal(expandAtCursor(editor(block("wait for |")).view, DEFAULTS), false);
+  assert.equal(expandAtCursor(editor("for |").view, DEFAULTS), false);
 });
 
 test("leaving the snippet ends it", () => {
@@ -192,4 +289,64 @@ test("regex trigger with a capture group", () => {
   const e = editor(block("|"));
   e.type("x <- a1", list);
   assert.equal(steps(e.show()), "x <- a_1|");
+});
+
+test("default snippet: algo + space in the note makes a block, Enter walks the header", () => {
+  const e = editor("Some text\n|\nmore");
+  e.type("algo ");
+  assert.equal(e.show(), "Some text\n```algo\n|\nInput: \nOutput: \n\n```\nmore");
+  e.type("Sort");
+  assert.ok(smartEnter(e.view));
+  assert.equal(e.show(), "Some text\n```algo\nSort\nInput: |\nOutput: \n\n```\nmore");
+  e.type("array mk");
+  e.type("A");
+  assert.ok(smartEnter(e.view));
+  assert.ok(smartEnter(e.view));
+  assert.equal(e.show(), "Some text\n```algo\nSort\nInput: array $A$ \nOutput: |\n\n```\nmore");
+  e.type("sorted");
+  assert.ok(smartEnter(e.view));
+  assert.equal(e.show(), "Some text\n```algo\nSort\nInput: array $A$ \nOutput: sorted\n|\n```\nmore");
+  // The block is set up: from here on Enter and Tab are the usual ones.
+  e.type("while x do");
+  assert.ok(smartEnter(e.view));
+  assert.equal(snippetTab(e.view, DEFAULTS), false);
+  assert.match(e.show(), /while x do\n {4}\|\n```\nmore$/);
+});
+
+test("algo + Tab works too, and Tab walks the header", () => {
+  const e = editor("|");
+  e.type("algo");
+  assert.ok(snippetTab(e.view, DEFAULTS));
+  assert.equal(e.show(), "```algo\n|\nInput: \nOutput: \n\n```");
+  snippetTab(e.view, DEFAULTS);
+  snippetTab(e.view, DEFAULTS);
+  assert.equal(e.show(), "```algo\n\nInput: \nOutput: |\n\n```");
+  snippetTab(e.view, DEFAULTS);
+  assert.equal(e.show(), "```algo\n\nInput: \nOutput: \n|\n```");
+});
+
+test("the block shortcut only runs in the note text, at the start of a line", () => {
+  const typed = (doc: string, text: string) => {
+    const e = editor(doc);
+    e.type(text);
+    return e.show();
+  };
+  assert.equal(typed("the |", "algo "), "the algo |");
+  assert.equal(typed("|", "algorithm "), "algorithm |");
+  assert.equal(steps(typed(block("|"), "algo ")), "algo |");
+  assert.equal(typed("```python\n|\n```", "algo "), "```python\nalgo |\n```");
+  assert.equal(typed("```\n|\n```", "algo "), "```\nalgo |\n```");
+  // After a closed block the note text starts again.
+  assert.match(typed("```python\nx\n```\n|", "algo "), /^```python\nx\n```\n```algo\n\|\nInput: /);
+});
+
+test("a fence inside a longer fence does not start a block", () => {
+  // Four backticks wrap an example: the algo lines inside are plain text of that example.
+  const doc = "````\n```algo\nT\nInput: A\nOutput: A\n|\n```\n````";
+  const e = editor(doc);
+  e.type("for ");
+  assert.equal(e.show(), doc.replace("|", "for |"));
+  assert.ok(press(doc.replace("|", "while x do|")).startsWith("D:"));
+  // A tilde fence is not closed by backticks.
+  assert.equal(steps(press("~~~algo\nT\nI\nO\n```\nwhile x do|\n~~~").slice(2)), "```\nwhile x do\n    |");
 });

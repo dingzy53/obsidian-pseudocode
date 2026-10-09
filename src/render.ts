@@ -1,4 +1,4 @@
-import { declaredFunctions, tokenize, type Model, type Token } from "./parse.ts";
+import { declaredFunctions, tokenize, type Keywords, type Model, type Token } from "./parse.ts";
 
 // Builds a DOM node for `$tex$`. Injected so rendering never touches MathJax directly.
 export type MathFn = (tex: string) => Node;
@@ -12,8 +12,9 @@ export interface RenderOptions {
   indentGuides: boolean;
   commentAlign: "right" | "inline";
   commentMarker: string;
-  // Extra bold words, lower case.
-  keywords: ReadonlySet<string>;
+  // Colour each kind of token. Off gives the black-and-white LaTeX look.
+  colors: boolean;
+  keywords: Keywords;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -37,8 +38,12 @@ export function render(model: Model, root: HTMLElement, math: MathFn, options: R
     for (const tok of tokens) {
       switch (tok.t) {
         case "kw":
+          el(parent, "span", `algo-kw algo-kw-${tok.k}`, tok.v);
+          break;
         case "fn":
         case "str":
+        case "num":
+        case "sym":
           el(parent, "span", `algo-${tok.t}`, tok.v);
           break;
         case "code":
@@ -59,6 +64,7 @@ export function render(model: Model, root: HTMLElement, math: MathFn, options: R
   const classes = ["algo", `algo-${options.align}`];
   if (options.font === "mono") classes.push("algo-mono");
   if (!options.indentGuides) classes.push("algo-no-guides");
+  if (options.colors) classes.push("algo-colors");
   const outer = el(root, "div", classes.join(" "));
   if (options.fontSize !== 100) outer.style.setProperty("--algo-font-size", `${options.fontSize / 100}em`);
 

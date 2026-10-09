@@ -1,10 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parse, tokenize, opensBlock, declaredFunctions } from "../src/parse.ts";
+import { parse, tokenize, opensBlock, declaredFunctions, compileKeywords, DEFAULT_KEYWORDS } from "../src/parse.ts";
 
 const kinds = (s: string, options = {}) =>
   tokenize(s, options).map((t) => (t.t === "comment" ? "comment" : `${t.t}:${t.v}`));
 const bold = (s: string, options = {}) => kinds(s, options).filter((k) => k.startsWith("kw:")).map((k) => k.slice(3));
+// Each keyword with its kind, e.g. "if:control".
+const kw = (s: string, options = {}) =>
+  tokenize(s, options).flatMap((t) => (t.t === "kw" ? [`${t.v}:${t.k}`] : []));
 
 test("header with labels", () => {
   const m = parse("Sort\nInput: array A\nOutput: sorted A\nreturn A");
@@ -33,6 +36,29 @@ test("labelled rows may continue the header", () => {
   const m = parse("T\nInput: A\nOutput: B\nData: a heap H\nReturns: -\nresult <- 1\nOutput: late");
   assert.deepEqual(m.fields.map((f) => f.label), ["Input", "Output", "Data"]);
   assert.deepEqual(m.steps.map((s) => s.text), ["result <- 1", "Output: late"]);
+});
+
+test("an empty title line keeps the header rows in place", () => {
+  const m = parse("\nInput: A\nOutput: B\nx");
+  assert.equal(m.title, "");
+  assert.deepEqual(m.fields, [
+    { label: "Input", value: "A" },
+    { label: "Output", value: "B" },
+  ]);
+  assert.deepEqual(m.steps.map((s) => s.text), ["x"]);
+
+  // The freshly inserted template, with one step typed and nothing else filled in.
+  const fresh = parse("\nInput: \nOutput: \nfor i from 1 to n\n");
+  assert.deepEqual([fresh.title, fresh.fields.length], ["", 0]);
+  assert.deepEqual(fresh.steps.map((s) => s.text), ["for i from 1 to n"]);
+
+  const half = parse("\nInput: A\nOutput: \nwhile x:\n\ty");
+  assert.deepEqual(half.fields, [{ label: "Input", value: "A" }]);
+  assert.deepEqual(half.steps.map((s) => s.level), [0, 1]);
+
+  // A blank line above a real title is still just a blank line.
+  assert.equal(parse("\nSort\nInput: A\nOutput: B\nx").title, "Sort");
+  assert.deepEqual(parse("\nInput: \nOutput: \n"), { title: "", fields: [], steps: [] });
 });
 
 test("short sources do not crash", () => {
@@ -76,7 +102,7 @@ test("longer symbols win over their prefixes", () => {
   assert.deepEqual(kinds("a <-> b <=> c => d ... e").filter((k) => k.startsWith("sym")), [
     "sym:↔", "sym:⇔", "sym:⇒", "sym:…",
   ]);
-  assert.deepEqual(kinds("A[1..n]"), ["text:A[1..n]"]);
+  assert.deepEqual(kinds("A[i..n]"), ["text:A[i..n]"]);
 });
 
 test("more keywords", () => {
@@ -84,8 +110,7 @@ test("more keywords", () => {
   assert.deepEqual(bold("for i from 1 to n"), ["for", "from", "to"]);
   assert.deepEqual(bold("parallel for each u in S"), ["parallel", "for", "each", "in"]);
   assert.deepEqual(bold("switch x"), ["switch"]);
-  assert.deepEqual(bold("case color of"), ["case", "of"]);
-  assert.deepEqual(bold("one of them"), []);
+  assert.deepEqual(bold("add x to S"), []);
   assert.deepEqual(bold("try"), ["try"]);
   assert.deepEqual(bold("x <- a mod b"), ["mod"]);
   assert.deepEqual(bold("elseif x then"), ["elseif", "then"]);
@@ -105,10 +130,32 @@ test("an assigned word is a variable, not a keyword", () => {
   assert.deepEqual(bold("return true == x"), ["return", "true"]);
 });
 
-test("extra keywords", () => {
-  const options = { keywords: new Set(["spawn"]) };
-  assert.deepEqual(bold("Spawn worker", options), ["Spawn"]);
-  assert.deepEqual(bold("spawn worker"), []);
+test("each keyword has a kind", () => {
+  assert.deepEqual(kw("if x and not y then return true"), [
+    "if:control", "and:operator", "not:operator", "then:control", "return:control", "true:constant",
+  ]);
+  assert.deepEqual(kw("print x mod 2"), ["print:statement", "mod:operator"]);
+  assert.deepEqual(kw("for i from 1 to n"), ["for:control", "from:control", "to:control"]);
+});
+
+test("keyword lists can be replaced", () => {
+  const keywords = compileKeywords({
+    ...DEFAULT_KEYWORDS,
+    control: "si alors, SINON",
+    statement: "spawn",
+    constant: "",
+  });
+  assert.deepEqual(kw("Si x alors true sinon false", { keywords }), ["Si:control", "alors:control", "sinon:control"]);
+  assert.deepEqual(kw("if x then", { keywords }), []);
+  assert.deepEqual(kw("spawn worker", { keywords }), ["spawn:statement"]);
+  assert.deepEqual(kw("then spawn worker", { keywords }), []);
+  assert.deepEqual(kw("spawn worker"), []);
+});
+
+test("numbers", () => {
+  assert.deepEqual(kinds("x <- 3.14 + 2n + x1"), ["text:x ", "sym:←", "text: ", "num:3.14", "text: + 2n + x1"]);
+  assert.deepEqual(kinds("A[1..n]"), ["text:A[", "num:1", "text:..n]"]);
+  assert.deepEqual(tokenize("at most 3", { plain: true }), [{ t: "text", v: "at most 3" }]);
 });
 
 test("strings and code keep their words plain", () => {
@@ -119,7 +166,7 @@ test("strings and code keep their words plain", () => {
 
 test("math and escaped dollar", () => {
   assert.deepEqual(kinds("x $a_i$ y"), ["text:x ", "math:a_i", "text: y"]);
-  assert.deepEqual(kinds("cost \\$5"), ["text:cost $5"]);
+  assert.deepEqual(kinds("cost \\$x"), ["text:cost $x"]);
 });
 
 test("comment keeps math and symbols but no keywords", () => {
@@ -167,5 +214,6 @@ test("opensBlock: loop and branch headers without do / then", () => {
 });
 
 test("spaces before a comment are dropped", () => {
-  assert.deepEqual(kinds("lo <- 1      // note").slice(-2), ["text: 1", "comment"]);
+  assert.deepEqual(kinds("lo <- 1      // note").slice(-2), ["num:1", "comment"]);
+  assert.deepEqual(kinds("lo <- x      // note").slice(-2), ["text: x", "comment"]);
 });

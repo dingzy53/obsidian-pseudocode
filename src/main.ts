@@ -2,10 +2,11 @@ import { MarkdownRenderChild, Plugin, finishRenderMath, loadMathJax, renderMath 
 import { algoEditor } from "./editor.ts";
 import { parse } from "./parse.ts";
 import { render, type MathFn } from "./render.ts";
-import { AlgoSettingTab, DEFAULT_SETTINGS, renderOptions, type Settings } from "./settings.ts";
+import { DEFAULT_SETTINGS, loadSettings, renderOptions, storedSettings, type Settings } from "./settings.ts";
+import { AlgoSettingTab } from "./settings-tab.ts";
 import { parseSnippets, type Snippet } from "./snippets.ts";
 
-const TEMPLATE = "```algo\nAlgorithm name\nInput: \nOutput: \n\n```\n";
+const TEMPLATE = "```algo\n\nInput: \nOutput: \n\n```\n";
 
 // One rendered block. Kept by the plugin while it is on screen, so a settings change can redraw it.
 class AlgoBlock extends MarkdownRenderChild {
@@ -53,7 +54,7 @@ export default class PlainPseudocode extends Plugin {
   blocks = new Set<AlgoBlock>();
 
   async onload() {
-    this.settings = { ...DEFAULT_SETTINGS, ...((await this.loadData()) as Partial<Settings> | null) };
+    this.settings = loadSettings(await this.loadData());
     this.loadSnippets();
     this.addSettingTab(new AlgoSettingTab(this.app, this));
 
@@ -72,11 +73,8 @@ export default class PlainPseudocode extends Plugin {
         const cur = editor.getCursor();
         const lead = cur.ch > 0 && editor.getLine(cur.line).trim() ? "\n" : "";
         editor.replaceSelection(lead + TEMPLATE);
-        const titleLine = cur.line + (lead ? 1 : 0) + 1;
-        editor.setSelection(
-          { line: titleLine, ch: 0 },
-          { line: titleLine, ch: editor.getLine(titleLine).length },
-        );
+        // The cursor waits on the empty title line.
+        editor.setCursor({ line: cur.line + (lead ? 1 : 0) + 1, ch: 0 });
       },
     });
   }
@@ -90,7 +88,7 @@ export default class PlainPseudocode extends Plugin {
 
   // `redraw` is for settings that change how a block looks.
   async saveSettings(redraw = true) {
-    await this.saveData(this.settings);
+    await this.saveData(storedSettings(this.settings));
     if (redraw) for (const block of this.blocks) void block.draw();
   }
 }

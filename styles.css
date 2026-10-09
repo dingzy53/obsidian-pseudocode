@@ -102,6 +102,51 @@
   font-size: 0.9em;
 }
 
+/* Syntax colours, on unless turned off in the settings. They follow the theme's code colours.
+   To change one, set its variable from a CSS snippet: .algo-colors { --algo-control: ...; } */
+.algo-colors {
+  --algo-control: var(--code-keyword);
+  --algo-statement: var(--code-property);
+  --algo-operator: var(--code-operator);
+  --algo-constant: var(--code-value);
+  --algo-number: var(--code-value);
+  --algo-function: var(--code-function);
+  --algo-string: var(--code-string);
+  --algo-comment: var(--text-muted);
+}
+
+.algo-colors .algo-kw-control {
+  color: var(--algo-control);
+}
+
+.algo-colors .algo-kw-statement {
+  color: var(--algo-statement);
+}
+
+.algo-colors .algo-kw-operator {
+  color: var(--algo-operator);
+}
+
+.algo-colors .algo-kw-constant {
+  color: var(--algo-constant);
+}
+
+.algo-colors .algo-num {
+  color: var(--algo-number);
+}
+
+.algo-colors .algo-fn {
+  color: var(--algo-function);
+}
+
+.algo-colors .algo-str {
+  color: var(--algo-string);
+}
+
+.algo-colors .algo-comment {
+  color: var(--algo-comment);
+}
+
 .algo-comment {
   margin-left: 0.4em;
   color: var(--text-muted);
@@ -137,6 +182,14 @@
 }
 
 /* Settings tab and editor. */
+
+.algo-keywords-input {
+  width: 24em;
+  max-width: 100%;
+  height: 4.6em;
+  font-size: var(--font-ui-smaller);
+  resize: vertical;
+}
 
 .algo-snippets-input {
   width: 100%;

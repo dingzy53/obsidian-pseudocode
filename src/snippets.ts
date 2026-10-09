@@ -8,6 +8,10 @@ export interface Snippet {
   auto: boolean;
   lineStart: boolean;
   word: boolean;
+  // "math": only between two dollars. "text": only outside them. null: anywhere.
+  where: "math" | "text" | null;
+  // Runs in the note text, outside every code block, instead of inside an algo block.
+  note: boolean;
 }
 
 export interface Match {
@@ -30,8 +34,15 @@ export interface Expansion {
 }
 
 export const DEFAULT_SNIPPETS = `[
-  // Type "for" and a space at the start of a step. Tab moves to the next value.
-  { "trigger": "for ", "replacement": "for \${0:i} from \${1:1} to \${2:n}", "options": "Ab" }
+  // Type "for" and a space at the start of a line. Tab moves to the next value.
+  { "trigger": "for ", "replacement": "for \${0:i} from \${1:1} to \${2:n}", "options": "Ab" },
+
+  // Type "mk" for inline math. Tab leaves the math.
+  { "trigger": "mk", "replacement": "$\${0}$ $1", "options": "At" },
+
+  // In the note: type "algo" and a space at the start of a line for a new block.
+  // Enter or Tab moves from the title to the input, the output and the first step.
+  { "trigger": "algo ", "replacement": "\`\`\`algo\\n$0\\nInput: $1\\nOutput: $2\\n$3\\n\`\`\`", "options": "Abn" }
 ]
 `;
 
@@ -73,8 +84,9 @@ function toSnippet(raw: unknown, n: number): Snippet {
   if (typeof trigger !== "string" || !trigger) return fail('"trigger" must be a non-empty string');
   if (typeof replacement !== "string") return fail('"replacement" must be a string');
   if (typeof options !== "string") return fail('"options" must be a string');
-  const unknown = /[^Abwr]/.exec(options);
-  if (unknown) fail(`unknown option "${unknown[0]}" (use A, b, w, r)`);
+  const unknown = /[^Abwrmtn]/.exec(options);
+  if (unknown) fail(`unknown option "${unknown[0]}" (use A, b, w, r, m, t, n)`);
+  if (options.includes("m") && options.includes("t")) fail('use "m" or "t", not both');
 
   let pattern: RegExp | null = null;
   if (options.includes("r")) {
@@ -91,6 +103,8 @@ function toSnippet(raw: unknown, n: number): Snippet {
     auto: options.includes("A"),
     lineStart: options.includes("b"),
     word: options.includes("w"),
+    where: options.includes("m") ? "math" : options.includes("t") ? "text" : null,
+    note: options.includes("n"),
   };
 }
 
@@ -105,8 +119,21 @@ export function parseSnippets(source: string): { snippets: Snippet[]; error: str
   }
 }
 
+// Is the end of `text` between an opening `$` and its closing one? `\$` does not count.
+function insideMath(text: string): boolean {
+  const dollars = (text.match(/\\.|\$/g) ?? []).filter((m) => m === "$");
+  return dollars.length % 2 === 1;
+}
+
 // First snippet whose trigger ends at the cursor. `before` and `after` are the line around the cursor.
-export function matchSnippet(snippets: Snippet[], before: string, after: string, autoOnly: boolean): Match | null {
+// `allowed` is asked last, about a snippet that fits in every other way.
+export function matchSnippet(
+  snippets: Snippet[],
+  before: string,
+  after: string,
+  autoOnly: boolean,
+  allowed: (snippet: Snippet) => boolean = () => true,
+): Match | null {
   for (const snippet of snippets) {
     if (autoOnly && !snippet.auto) continue;
     let length = 0;
@@ -118,13 +145,17 @@ export function matchSnippet(snippets: Snippet[], before: string, after: string,
       groups = m.slice(1).map((g) => g ?? "");
     } else if (before.endsWith(snippet.trigger)) {
       length = snippet.trigger.length;
+    } else if (!autoOnly && before.endsWith(snippet.trigger.trimEnd())) {
+      // On Tab, the closing space of a trigger such as "for " may be left out.
+      length = snippet.trigger.trimEnd().length;
     }
     if (!length) continue;
 
     const head = before.slice(0, before.length - length);
-    if (head.includes("//")) continue;
+    if (snippet.where && (snippet.where === "math") !== insideMath(head)) continue;
     if (snippet.lineStart && head.trim()) continue;
     if (snippet.word && (/\w$/.test(head) || /^\w/.test(after))) continue;
+    if (!allowed(snippet)) continue;
     return { snippet, length, groups };
   }
   return null;

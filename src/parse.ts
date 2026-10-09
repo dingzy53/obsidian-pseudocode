@@ -17,38 +17,60 @@ export interface Model {
   steps: Step[];
 }
 
+// The kinds of keyword a step can show. Each has its own class, so each can have its own colour.
+export type KeywordKind = "control" | "statement" | "operator" | "constant";
+
+// The word lists a user can edit. `loop` words are shown as `control`, but only on `for` lines.
+export type KeywordGroup = KeywordKind | "loop";
+export type KeywordLists = Record<KeywordGroup, string>;
+export type Keywords = Record<KeywordGroup, ReadonlySet<string>>;
+
 export type Token =
-  | { t: "text" | "kw" | "fn" | "sym" | "math" | "str" | "code"; v: string }
+  | { t: "text" | "fn" | "sym" | "math" | "str" | "num" | "code"; v: string }
+  | { t: "kw"; v: string; k: KeywordKind }
   | { t: "comment"; c: Token[] };
 
 export interface TokenizeOptions {
   // Header values and comments: math, symbols and code only.
   plain?: boolean;
-  // Extra bold words, lower case.
-  keywords?: ReadonlySet<string>;
+  // Defaults to `DEFAULT_KEYWORDS`.
+  keywords?: Keywords;
   // Names from `declaredFunctions`, styled where they are called.
   functions?: ReadonlySet<string>;
 }
 
 const TAB = 4;
 
-const words = (s: string) => new Set(s.split(" "));
-
-const KEYWORDS = words(
-  "if then else elif elsif elseif for foreach forall while do repeat until loop return break continue " +
-    "switch case default otherwise try catch finally begin function procedure end " +
+// Close to the LaTeX `algorithmic` / `algpseudocode` / `algorithm2e` vocabulary.
+export const DEFAULT_KEYWORDS: KeywordLists = {
+  // Bold anywhere in a step.
+  control:
+    "if then else elif elsif elseif for foreach forall while do repeat until loop " +
+    "switch case default otherwise try catch finally begin end " +
     "endif endfor endwhile endloop endswitch endfunction endprocedure " +
-    "and or not xor mod div true false null nil",
-);
+    "function procedure return break continue",
+  // Only on a line that starts with for / foreach / forall, so "add x to S" stays plain.
+  loop: "to downto from in each all by step parallel",
+  // Only as the first word of a step, so "the error is small" stays plain.
+  statement: "print read write input output call swap assert error throw raise yield goto exit halt",
+  operator: "and or not xor mod",
+  constant: "true false nil null",
+};
 
-// Only bold as the first word of a step, so "the error is small" stays plain.
-const LEADING = words("print read write input output call swap assert error throw raise yield goto exit halt");
+export function compileKeywords(lists: KeywordLists): Keywords {
+  const set = (s: string) => new Set(s.toLowerCase().split(/[\s,]+/).filter(Boolean));
+  return {
+    control: set(lists.control),
+    loop: set(lists.loop),
+    statement: set(lists.statement),
+    operator: set(lists.operator),
+    constant: set(lists.constant),
+  };
+}
 
-// Only bold on lines that start a certain way, so "add x to S" stays plain.
-const CONTEXT: [RegExp, Set<string>][] = [
-  [/^\s*(parallel\s+)?(for|foreach|forall)\b/i, words("to downto in each all by step from parallel")],
-  [/^\s*(switch|case)\b/i, words("of")],
-];
+const BUILT_IN = compileKeywords(DEFAULT_KEYWORDS);
+
+const FOR_LINE = /^\s*(parallel\s+)?(for|foreach|forall)\b/i;
 
 const SYMBOLS: Record<string, string> = {
   "<-": "←",
@@ -78,13 +100,17 @@ export function parse(source: string): Model {
   while (lines.length && !lines[0].trim()) lines.shift();
   while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
 
-  // Lines 2 and 3 are always header rows; labelled rows may follow them.
+  // A block may start with its header rows: the title line was left empty.
+  const untitled = lines.length > 0 && fieldOf(lines[0]) !== null;
+  const first = untitled ? 0 : 1;
+
+  // The two lines after the title are always header rows; labelled rows may follow them.
   const fields: Field[] = [];
-  let at = 1;
+  let at = first;
   for (; at < lines.length; at++) {
     const labelled = fieldOf(lines[at]);
-    if (at > 2 && !labelled) break;
-    const field = labelled ?? { label: at === 1 ? "Input" : "Output", value: lines[at].trim() };
+    if (at > first + 1 && !labelled) break;
+    const field = labelled ?? { label: at === first ? "Input" : "Output", value: lines[at].trim() };
     if (field.value && field.value !== "-") fields.push(field);
   }
 
@@ -96,7 +122,7 @@ export function parse(source: string): Model {
   const unit = offsets.length ? Math.min(...offsets) : TAB;
 
   return {
-    title: (lines[0] ?? "").trim(),
+    title: untitled ? "" : (lines[0] ?? "").trim(),
     fields,
     steps: rest.map((l) =>
       l.trim()
@@ -119,9 +145,9 @@ export function declaredFunctions(steps: Step[]): Set<string> {
 }
 
 // One pass, earliest match wins:
-// \$ | $math$ | //comment | `code` | "string" | symbol | Function( | function( | word
+// \$ | $math$ | //comment | `code` | "string" | symbol | Function( | function( | word | number
 const INLINE =
-  /\\\$|\$([^$\n]+)\$|\/\/(.*)$|`([^`\n]+)`|"[^"\n]*"|<=>|<->|<-|->|<=|>=|=>|!=|\.{3}|\b[A-Z][\w-]*(?=\()|\b[a-z_]\w*(?=\()|\b[A-Za-z]+\b/g;
+  /\\\$|\$([^$\n]+)\$|\/\/(.*)$|`([^`\n]+)`|"[^"\n]*"|<=>|<->|<-|->|<=|>=|=>|!=|\.{3}|\b[A-Z][\w-]*(?=\()|\b[a-z_]\w*(?=\()|\b[A-Za-z]+\b|\b\d+(?:\.\d+)?\b/g;
 
 // A name right after `function` / `procedure`.
 const DECLARED_NAME = /\s+([A-Za-z_][\w-]*)/y;
@@ -130,8 +156,8 @@ const DECLARED_NAME = /\s+([A-Za-z_][\w-]*)/y;
 const ASSIGNED = /^\s*(<-|:=|=(?![=>]))/;
 
 export function tokenize(text: string, options: TokenizeOptions = {}): Token[] {
-  const { plain = false, keywords, functions } = options;
-  const context = plain ? [] : CONTEXT.filter(([re]) => re.test(text)).map(([, set]) => set);
+  const { plain = false, keywords = BUILT_IN, functions } = options;
+  const forLine = FOR_LINE.test(text);
   const out: Token[] = [];
   let last = 0;
   const push = (t: Token) => {
@@ -139,11 +165,13 @@ export function tokenize(text: string, options: TokenizeOptions = {}): Token[] {
     if (t.t === "text" && prev && prev.t === "text") prev.v += t.v;
     else out.push(t);
   };
-  const isKeyword = (w: string, first: boolean) =>
-    KEYWORDS.has(w) ||
-    keywords?.has(w) ||
-    context.some((set) => set.has(w)) ||
-    (first && LEADING.has(w));
+  const kindOf = (w: string, first: boolean): KeywordKind | null => {
+    if (keywords.control.has(w)) return "control";
+    if (keywords.operator.has(w)) return "operator";
+    if (keywords.constant.has(w)) return "constant";
+    if (forLine && keywords.loop.has(w)) return "control";
+    return first && keywords.statement.has(w) ? "statement" : null;
+  };
 
   const re = new RegExp(INLINE);
   for (let m = re.exec(text); m; m = re.exec(text)) {
@@ -155,18 +183,19 @@ export function tokenize(text: string, options: TokenizeOptions = {}): Token[] {
     else if (m[1] !== undefined) push({ t: "math", v: m[1] });
     else if (m[2] !== undefined) {
       const prev = out[out.length - 1];
-      if (prev && prev.t === "text") prev.v = prev.v.trimEnd();
+      if (prev && prev.t === "text" && !(prev.v = prev.v.trimEnd())) out.pop();
       push({ t: "comment", c: tokenize(m[2].trim(), { plain: true }) });
     }
     else if (m[3] !== undefined) push({ t: "code", v: m[3] });
     else if (s[0] === '"') push({ t: plain ? "text" : "str", v: s });
     else if (SYMBOLS[s]) push({ t: "sym", v: SYMBOLS[s] });
+    else if (plain) push({ t: "text", v: s });
+    else if (/^\d/.test(s)) push({ t: "num", v: s });
     else {
       const w = s.toLowerCase();
-      const first = !text.slice(0, m.index).trim();
-      if (plain) push({ t: "text", v: s });
-      else if (isKeyword(w, first) && !ASSIGNED.test(text.slice(last))) {
-        push({ t: "kw", v: s });
+      const kind = ASSIGNED.test(text.slice(last)) ? null : kindOf(w, !text.slice(0, m.index).trim());
+      if (kind) {
+        push({ t: "kw", v: s, k: kind });
         if (w === "function" || w === "procedure") {
           DECLARED_NAME.lastIndex = last;
           const name = DECLARED_NAME.exec(text);
