@@ -5,11 +5,15 @@ Obsidian community plugin (TypeScript, bundled to `main.js` by esbuild). It rend
 ## Layout
 
 - `src/parse.ts`: pure parsing (`parse`, `tokenize`, `opensBlock`). No imports.
-- `src/render.ts`: builds the DOM from a parsed model. The math renderer is injected.
-- `src/editor.ts`: CodeMirror 6 smart-Enter keymap, active only inside ` ```algo ` fences.
-- `src/main.ts`: plugin lifecycle only (code block processor, command, editor extension). Keep it small.
-- `styles.css`: all styling, via Obsidian CSS variables. No inline styles except the `--algo-ln-w` variable.
-- `test/*.test.ts`: `node:test` suites for `parse.ts` and `editor.ts`.
+- `src/snippets.ts`: pure snippet logic (`parseSnippets`, `matchSnippet`, `expand`). No imports.
+- `src/render.ts`: builds the DOM from a parsed model. The math renderer and the display options are injected.
+- `src/editor.ts`: CodeMirror 6 extension, active only inside ` ```algo ` fences: smart Enter, snippet expansion and tabstops. It gets the snippets through a getter, so it never imports the plugin.
+- `src/settings.ts`: the `Settings` shape, its defaults and the settings tab.
+- `src/main.ts`: plugin lifecycle only (settings, code block processor, command, editor extension). Keep it small.
+- `styles.css`: all styling, via Obsidian CSS variables. No inline styles except the `--algo-ln-w` and `--algo-font-size` variables.
+- `test/*.test.ts`: `node:test` suites for `parse.ts`, `snippets.ts` and `editor.ts`.
+
+Each rendered block is a `MarkdownRenderChild` that the plugin keeps while it is on screen. `saveSettings` redraws them all, so every display setting goes through `render` options rather than global classes.
 
 ## Commands
 
@@ -32,7 +36,10 @@ Run `npm run lint && npm test && npm run build` before every commit.
 - Do not log to the console except for real errors. Do not set default hotkeys. Use sentence case for UI text.
 - Do not commit `main.js` or `node_modules/`.
 - Do not change the plugin `id` (`plain-pseudocode`) or the `algo` code block language, which are public API.
-- Add or update tests when changing `parse.ts` or `editor.ts`.
+- Add or update tests when changing `parse.ts`, `snippets.ts` or `editor.ts`.
+- Snippet definitions are data (JSON with comments). Never `eval` them or build functions from them.
+- A test loads the `jsonc` example in `README.md`, so keep that block valid when the snippet format changes.
+- Keep the settings tab short: a new option must earn its row.
 
 ## Releasing
 

@@ -6,42 +6,71 @@ export interface Step {
   blank: boolean;
 }
 
+export interface Field {
+  label: string;
+  value: string;
+}
+
 export interface Model {
   title: string;
-  input: string;
-  output: string;
+  fields: Field[];
   steps: Step[];
 }
 
 export type Token =
-  | { t: "text" | "kw" | "fn" | "sym" | "math"; v: string }
+  | { t: "text" | "kw" | "fn" | "sym" | "math" | "str" | "code"; v: string }
   | { t: "comment"; c: Token[] };
+
+export interface TokenizeOptions {
+  // Header values and comments: math, symbols and code only.
+  plain?: boolean;
+  // Extra bold words, lower case.
+  keywords?: ReadonlySet<string>;
+  // Names from `declaredFunctions`, styled where they are called.
+  functions?: ReadonlySet<string>;
+}
 
 const TAB = 4;
 
-const KEYWORDS = new Set(
-  (
-    "if then else elif for foreach while do repeat until loop return break continue " +
-    "function procedure end and or not true false null nil"
-  ).split(" "),
+const words = (s: string) => new Set(s.split(" "));
+
+const KEYWORDS = words(
+  "if then else elif elsif elseif for foreach forall while do repeat until loop return break continue " +
+    "switch case default otherwise try catch finally begin function procedure end " +
+    "endif endfor endwhile endloop endswitch endfunction endprocedure " +
+    "and or not xor mod div true false null nil",
 );
 
-// Only bold on `for` / `foreach` lines, so "add x to S" stays plain.
-const FOR_KEYWORDS = new Set("to downto in each all by step".split(" "));
+// Only bold as the first word of a step, so "the error is small" stays plain.
+const LEADING = words("print read write input output call swap assert error throw raise yield goto exit halt");
+
+// Only bold on lines that start a certain way, so "add x to S" stays plain.
+const CONTEXT: [RegExp, Set<string>][] = [
+  [/^\s*(parallel\s+)?(for|foreach|forall)\b/i, words("to downto in each all by step from parallel")],
+  [/^\s*(switch|case)\b/i, words("of")],
+];
 
 const SYMBOLS: Record<string, string> = {
   "<-": "←",
   "->": "→",
+  "<->": "↔",
+  "=>": "⇒",
+  "<=>": "⇔",
   "<=": "≤",
   ">=": "≥",
   "!=": "≠",
+  "...": "…",
 };
+
+// Labelled header rows. Line 2 and line 3 may leave the label out.
+const FIELD =
+  /^\s*(inputs?|outputs?|require|ensure|data|result|param(?:eter)?s|returns|precondition|postcondition|globals?)\s*:(.*)$/i;
 
 const expandTabs = (s: string) => s.replace(/\t/g, " ".repeat(TAB));
 
-function headerValue(line: string | undefined, label: RegExp): string {
-  const v = (line ?? "").replace(label, "").trim();
-  return v === "-" ? "" : v;
+export function fieldOf(line: string): Field | null {
+  const m = FIELD.exec(line);
+  return m ? { label: m[1][0].toUpperCase() + m[1].slice(1), value: m[2].trim() } : null;
 }
 
 export function parse(source: string): Model {
@@ -49,7 +78,17 @@ export function parse(source: string): Model {
   while (lines.length && !lines[0].trim()) lines.shift();
   while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
 
-  const rest = lines.slice(3).map((l) => expandTabs(l.trimEnd()));
+  // Lines 2 and 3 are always header rows; labelled rows may follow them.
+  const fields: Field[] = [];
+  let at = 1;
+  for (; at < lines.length; at++) {
+    const labelled = fieldOf(lines[at]);
+    if (at > 2 && !labelled) break;
+    const field = labelled ?? { label: at === 1 ? "Input" : "Output", value: lines[at].trim() };
+    if (field.value && field.value !== "-") fields.push(field);
+  }
+
+  const rest = lines.slice(at).map((l) => expandTabs(l.trimEnd()));
   const indentOf = (l: string) => l.length - l.trimStart().length;
   const indents = rest.filter((l) => l.trim()).map(indentOf);
   const base = indents.length ? Math.min(...indents) : 0;
@@ -58,8 +97,7 @@ export function parse(source: string): Model {
 
   return {
     title: (lines[0] ?? "").trim(),
-    input: headerValue(lines[1], /^\s*input\s*:/i),
-    output: headerValue(lines[2], /^\s*output\s*:/i),
+    fields,
     steps: rest.map((l) =>
       l.trim()
         ? { level: Math.round((indentOf(l) - base) / unit), text: l.trim(), blank: false }
@@ -68,11 +106,32 @@ export function parse(source: string): Model {
   };
 }
 
-// One pass, earliest match wins: \$ | $math$ | //comment | symbol | Function( | word
-const INLINE = /\\\$|\$([^$\n]+)\$|\/\/(.*)$|<-|->|<=|>=|!=|\b[A-Z][\w-]*(?=\()|\b[A-Za-z]+\b/g;
+const DECLARATION = /^(?:function|procedure)\s+([A-Za-z_][\w-]*)/i;
 
-export function tokenize(text: string, plain = false): Token[] {
-  const forLine = !plain && /^\s*(for|foreach)\b/i.test(text);
+// Names introduced by `function foo(...)` / `procedure foo(...)`, so calls to them are styled too.
+export function declaredFunctions(steps: Step[]): Set<string> {
+  const names = new Set<string>();
+  for (const step of steps) {
+    const m = DECLARATION.exec(step.text);
+    if (m) names.add(m[1]);
+  }
+  return names;
+}
+
+// One pass, earliest match wins:
+// \$ | $math$ | //comment | `code` | "string" | symbol | Function( | function( | word
+const INLINE =
+  /\\\$|\$([^$\n]+)\$|\/\/(.*)$|`([^`\n]+)`|"[^"\n]*"|<=>|<->|<-|->|<=|>=|=>|!=|\.{3}|\b[A-Z][\w-]*(?=\()|\b[a-z_]\w*(?=\()|\b[A-Za-z]+\b/g;
+
+// A name right after `function` / `procedure`.
+const DECLARED_NAME = /\s+([A-Za-z_][\w-]*)/y;
+
+// `end <- n`: a word that is assigned to is a variable, never a keyword.
+const ASSIGNED = /^\s*(<-|:=|=(?![=>]))/;
+
+export function tokenize(text: string, options: TokenizeOptions = {}): Token[] {
+  const { plain = false, keywords, functions } = options;
+  const context = plain ? [] : CONTEXT.filter(([re]) => re.test(text)).map(([, set]) => set);
   const out: Token[] = [];
   let last = 0;
   const push = (t: Token) => {
@@ -80,8 +139,14 @@ export function tokenize(text: string, plain = false): Token[] {
     if (t.t === "text" && prev && prev.t === "text") prev.v += t.v;
     else out.push(t);
   };
+  const isKeyword = (w: string, first: boolean) =>
+    KEYWORDS.has(w) ||
+    keywords?.has(w) ||
+    context.some((set) => set.has(w)) ||
+    (first && LEADING.has(w));
 
-  for (const m of text.matchAll(INLINE)) {
+  const re = new RegExp(INLINE);
+  for (let m = re.exec(text); m; m = re.exec(text)) {
     const s = m[0];
     if (m.index > last) push({ t: "text", v: text.slice(last, m.index) });
     last = m.index + s.length;
@@ -91,14 +156,28 @@ export function tokenize(text: string, plain = false): Token[] {
     else if (m[2] !== undefined) {
       const prev = out[out.length - 1];
       if (prev && prev.t === "text") prev.v = prev.v.trimEnd();
-      push({ t: "comment", c: tokenize(m[2].trim(), true) });
+      push({ t: "comment", c: tokenize(m[2].trim(), { plain: true }) });
     }
+    else if (m[3] !== undefined) push({ t: "code", v: m[3] });
+    else if (s[0] === '"') push({ t: plain ? "text" : "str", v: s });
     else if (SYMBOLS[s]) push({ t: "sym", v: SYMBOLS[s] });
     else {
       const w = s.toLowerCase();
+      const first = !text.slice(0, m.index).trim();
       if (plain) push({ t: "text", v: s });
-      else if (KEYWORDS.has(w) || (forLine && FOR_KEYWORDS.has(w))) push({ t: "kw", v: s });
-      else if (/^[A-Z]/.test(s) && text[last] === "(") push({ t: "fn", v: s });
+      else if (isKeyword(w, first) && !ASSIGNED.test(text.slice(last))) {
+        push({ t: "kw", v: s });
+        if (w === "function" || w === "procedure") {
+          DECLARED_NAME.lastIndex = last;
+          const name = DECLARED_NAME.exec(text);
+          if (name) {
+            push({ t: "text", v: text.slice(last, DECLARED_NAME.lastIndex - name[1].length) });
+            push({ t: "fn", v: name[1] });
+            last = re.lastIndex = DECLARED_NAME.lastIndex;
+          }
+        }
+      }
+      else if ((/^[A-Z]/.test(s) || functions?.has(s)) && text[last] === "(") push({ t: "fn", v: s });
       else push({ t: "text", v: s });
     }
   }
@@ -106,8 +185,13 @@ export function tokenize(text: string, plain = false): Token[] {
   return out;
 }
 
+const ENDS_OPEN = /(\bdo|\bthen|\belse|\brepeat|\bloop|\bbegin|\botherwise|\btry|\bfinally|:)$/;
+const STARTS_OPEN = /^(parallel\s+)?(for|foreach|forall|while|if|elif|elsif|elseif|else\s+if|switch|catch)\b/;
+
 // Should pressing Enter after this line indent the next one?
-export function opensBlock(line: string): boolean {
+// `strict` wants the closing `do` / `then` / `:`; otherwise a bare `for i from 1 to n` opens a block too.
+export function opensBlock(line: string, strict = false): boolean {
   const s = line.replace(/\/\/.*$/, "").trim().toLowerCase();
-  return /(\bdo|\bthen|\belse|\brepeat|\bloop|:)$/.test(s) || /^(function|procedure)\b/.test(s);
+  if (ENDS_OPEN.test(s) || /^(function|procedure)\b/.test(s)) return true;
+  return !strict && STARTS_OPEN.test(s) && !/\b(do|then)\b/.test(s);
 }

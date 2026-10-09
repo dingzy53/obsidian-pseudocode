@@ -7,6 +7,14 @@
   margin: 1em 0;
 }
 
+.algo-left {
+  justify-content: flex-start;
+}
+
+.algo-right {
+  justify-content: flex-end;
+}
+
 .algo-box {
   width: fit-content;
   max-width: 100%;
@@ -16,7 +24,12 @@
   border-top: 2px solid var(--text-normal);
   border-bottom: 2px solid var(--text-normal);
   font-family: var(--font-text);
+  font-size: var(--algo-font-size, 1em);
   line-height: 1.55;
+}
+
+.algo-mono .algo-box {
+  font-family: var(--font-monospace);
 }
 
 .algo-title {
@@ -66,8 +79,12 @@
   border-left: 1px solid var(--background-modifier-border);
 }
 
+.algo-no-guides .algo-indent {
+  border-left-color: transparent;
+}
+
 .algo-text {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -81,8 +98,60 @@
   font-variant: small-caps;
 }
 
+.algo-code {
+  font-size: 0.9em;
+}
+
 .algo-comment {
   margin-left: 0.4em;
   color: var(--text-muted);
   font-style: italic;
+}
+
+.algo-comment-alone {
+  margin-left: 0;
+}
+
+/* A step with a comment after it. The comment is pushed to the right edge of the box, like
+   LaTeX's \Comment, and drops to a line of its own when the two do not fit side by side. */
+.algo-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.algo-content > .algo-text {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.algo-comment-right {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin-left: auto;
+  padding-left: 2em;
+  text-align: right;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Settings tab and editor. */
+
+.algo-snippets-input {
+  width: 100%;
+  min-height: 12em;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  resize: vertical;
+}
+
+.algo-snippets-status {
+  padding-top: 0.4em;
+}
+
+/* A snippet value that is still waiting to be filled in. */
+.algo-tabstop {
+  background-color: var(--background-modifier-hover);
+  border-radius: var(--radius-s);
 }
