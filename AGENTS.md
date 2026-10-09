@@ -4,12 +4,17 @@ Obsidian community plugin (TypeScript, bundled to `main.js` by esbuild). It rend
 
 ## Layout
 
-- `src/parse.ts`: pure parsing (`parse`, `tokenize`, `opensBlock`). No imports.
-- `src/render.ts`: builds the DOM from a parsed model. The math renderer is injected.
-- `src/editor.ts`: CodeMirror 6 smart-Enter keymap, active only inside ` ```algo ` fences.
-- `src/main.ts`: plugin lifecycle only (code block processor, command, editor extension). Keep it small.
-- `styles.css`: all styling, via Obsidian CSS variables. No inline styles except the `--algo-ln-w` variable.
-- `test/*.test.ts`: `node:test` suites for `parse.ts` and `editor.ts`.
+- `src/parse.ts`: pure parsing (`parse`, `tokenize`, `opensBlock`) and the keyword lists (`DEFAULT_KEYWORDS`, `compileKeywords`). No imports.
+- `src/snippets.ts`: pure snippet logic (`parseSnippets`, `matchSnippet`, `expand`). No imports.
+- `src/render.ts`: builds the DOM from a parsed model. The math renderer and the display options are injected.
+- `src/editor.ts`: CodeMirror 6 extension: smart Enter, snippet expansion and tabstops. Everything is limited to ` ```algo ` fences, except snippets with the `n` option, which run in the note text. It gets the snippets through a getter, so it never imports the plugin.
+- `src/settings.ts`: the `Settings` shape, its defaults and how it is stored. Pure, no `obsidian` import.
+- `src/settings-tab.ts`: the settings tab.
+- `src/main.ts`: plugin lifecycle only (settings, code block processor, command, editor extension). Keep it small.
+- `styles.css`: all styling, via Obsidian CSS variables. No inline styles except the `--algo-ln-w` and `--algo-font-size` variables.
+- `test/*.test.ts`: `node:test` suites for `parse.ts`, `snippets.ts`, `settings.ts` and `editor.ts`.
+
+Each rendered block is a `MarkdownRenderChild` that the plugin keeps while it is on screen. `saveSettings` redraws them all, so every display setting goes through `render` options rather than global classes.
 
 ## Commands
 
@@ -21,7 +26,9 @@ npm test          # unit tests (Node 22+, uses --experimental-strip-types)
 npm run lint      # eslint with eslint-plugin-obsidianmd
 ```
 
-Run `npm run lint && npm test && npm run build` before every commit.
+Run `npm run lint && npm test && npm run build` before every commit. Lint reports one known warning (`prefer-setting-definitions`): the declarative settings API needs Obsidian 1.13, above the current `minAppVersion`.
+
+To try a build in a real vault, copy `main.js`, `manifest.json` and `styles.css` into `<vault>/.obsidian/plugins/plain-pseudocode/` (leave `data.json` alone) and reload the plugin, for example with the Obsidian CLI: `obsidian plugin:reload id=plain-pseudocode`. The unit tests drive the editor through a stand-in view, so they do not cover real keyboard or input-method input.
 
 ## Rules
 
@@ -32,7 +39,13 @@ Run `npm run lint && npm test && npm run build` before every commit.
 - Do not log to the console except for real errors. Do not set default hotkeys. Use sentence case for UI text.
 - Do not commit `main.js` or `node_modules/`.
 - Do not change the plugin `id` (`plain-pseudocode`) or the `algo` code block language, which are public API.
-- Add or update tests when changing `parse.ts` or `editor.ts`.
+- Add or update tests when changing `parse.ts`, `snippets.ts`, `settings.ts` or `editor.ts`.
+- Keyword lists and snippet text that equal their default are not written to `data.json` (`storedSettings`), so changed defaults reach users who never edited them. Keep it that way for any new text default.
+- Syntax colours come from the theme's `--code-*` variables through the `--algo-*` variables in `styles.css`. A new token kind needs a class, a variable and a README line.
+- Snippet definitions are data (JSON with comments). Never `eval` them or build functions from them.
+- A test loads the `jsonc` example in `README.md`, so keep that block valid when the snippet format changes.
+- The `algo` snippet and the **Insert pseudocode block** command create the same block (empty title, `Input:`, `Output:`). `parse` reads a block that starts with a labelled row as untitled; keep the three in step.
+- Keep the settings tab short: a new option must earn its row.
 
 ## Releasing
 
