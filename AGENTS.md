@@ -4,15 +4,16 @@ Obsidian community plugin (TypeScript, bundled to `main.js` by esbuild). It rend
 
 ## Layout
 
-- `src/parse.ts`: pure parsing (`parse`, `tokenize`, `opensBlock`) and the keyword lists (`DEFAULT_KEYWORDS`, `compileKeywords`). No imports.
+- `src/parse.ts`: pure parsing (`parse`, `parseGroup` for class blocks, `isSeparator`, `tokenize`, `opensBlock`) and the keyword lists (`DEFAULT_KEYWORDS`, `compileKeywords`). No imports.
 - `src/snippets.ts`: pure snippet logic (`parseSnippets`, `matchSnippet`, `expand`). No imports.
-- `src/render.ts`: builds the DOM from a parsed model. The math renderer and the display options are injected.
+- `src/link.ts`: pure note logic: `findFences` (the one definition of a fenced block, shared by the editor), and `blockLink` for the **Copy link to pseudocode block** command (the `^id` rules). Imports only `parse.ts`.
+- `src/render.ts`: builds the DOM from a parsed model or a class group. The math renderer and the display options are injected.
 - `src/editor.ts`: CodeMirror 6 extension: smart Enter, snippet expansion and tabstops. Everything is limited to ` ```algo ` fences, except snippets with the `n` option, which run in the note text. It gets the snippets through a getter, so it never imports the plugin.
 - `src/settings.ts`: the `Settings` shape, its defaults and how it is stored. Pure, no `obsidian` import.
 - `src/settings-tab.ts`: the settings tab.
 - `src/main.ts`: plugin lifecycle only (settings, code block processor, command, editor extension). Keep it small.
 - `styles.css`: all styling, via Obsidian CSS variables. No inline styles except the `--algo-ln-w` and `--algo-font-size` variables.
-- `test/*.test.ts`: `node:test` suites for `parse.ts`, `snippets.ts`, `settings.ts` and `editor.ts`.
+- `test/*.test.ts`: `node:test` suites for `parse.ts`, `snippets.ts`, `settings.ts`, `link.ts` and `editor.ts`.
 
 Each rendered block is a `MarkdownRenderChild` that the plugin keeps while it is on screen. `saveSettings` redraws them all, so every display setting goes through `render` options rather than global classes.
 
@@ -39,12 +40,14 @@ To try a build in a real vault, copy `main.js`, `manifest.json` and `styles.css`
 - Do not log to the console except for real errors. Do not set default hotkeys. Use sentence case for UI text.
 - Do not commit `main.js` or `node_modules/`.
 - Do not change the plugin `id` (`plain-pseudocode`) or the `algo` code block language, which are public API.
-- Add or update tests when changing `parse.ts`, `snippets.ts`, `settings.ts` or `editor.ts`.
+- Add or update tests when changing `parse.ts`, `snippets.ts`, `settings.ts`, `link.ts` or `editor.ts`.
 - Keyword lists and snippet text that equal their default are not written to `data.json` (`storedSettings`), so changed defaults reach users who never edited them. Keep it that way for any new text default.
 - Syntax colours come from the theme's `--code-*` variables through the `--algo-*` variables in `styles.css`. A new token kind needs a class, a variable and a README line.
 - Snippet definitions are data (JSON with comments). Never `eval` them or build functions from them.
 - A test loads the `jsonc` example in `README.md`, so keep that block valid when the snippet format changes.
-- The `algo` snippet and the **Insert pseudocode block** command create the same block (empty title, `Input:`, `Output:`). `parse` reads a block that starts with a labelled row as untitled; keep the three in step.
+- The `algo` snippet and the **Insert pseudocode block** command create the same block (empty title, `Input:`, `Output:`). `parse` reads a block that starts with a labelled row as untitled; keep the three in step. The in-block `algo` snippet writes the same three rows after a `---` separator.
+- A line of dashes inside an `algo` fence splits the block into a class (`parseGroup`). Header rows restart after it, in `parse` and in `blockAt` of `editor.ts`; keep the two in step.
+- A `^id` after a fence only counts for Obsidian when a blank line (or the end of the note) follows it. `blockLink` adds that line; checked in a real vault, not just assumed.
 - Keep the settings tab short: a new option must earn its row.
 
 ## Releasing

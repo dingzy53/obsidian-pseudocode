@@ -43,7 +43,7 @@ H[n + 1] <- k
 
 ### Steps
 
-Each non-blank line is a numbered step, and indentation (tabs, 2 or 4 spaces) sets the nesting. A blank line leaves a small gap.
+Each non-blank line is a numbered step, and indentation (tabs, 2 or 4 spaces) sets the nesting. A blank line leaves a small gap. A line of three or more dashes (`---`) is not a step: it splits the block into several algorithms, see [Class blocks](#class-blocks).
 
 | You write | You get |
 | --- | --- |
@@ -71,6 +71,67 @@ There are five lists of keywords, close to what the LaTeX `algorithmic` packages
 
 A word that is assigned to is never a keyword, so `end <- n` and `step = 2` keep their variables plain.
 
+### Class blocks
+
+A series of algorithms that belong together, such as the operations of a priority queue, can be one block. Put `---` on a line of its own between them. The text before the first `---` is the head of the whole block.
+
+````
+```algo
+Priority Queue
+Data: max-heap $H[1..maxSize]$, size
+---
+SiftUp(i)
+Input: tree, i
+Output: -
+while i > 1 and H[Parent(i)] < H[i]:
+	swap H[Parent(i)] and H[i]
+	i <- Parent(i)
+---
+Insert(p)
+Input: tree, p
+Output: -
+if size = maxSize:
+	return ERROR
+size <- size + 1
+H[size] <- p
+SiftUp(size)
+```
+^PriorityQueue
+````
+
+- The head is the title on its first line, then labelled rows such as `Data:` or `Globals:`. Any other line there is shown as a short note. It has no `Input` and `Output` of its own, and it may be empty.
+- Each algorithm after a `---` is written exactly like a block of its own: title, input, output, steps.
+- It is one box, so every algorithm has the same width, the step text starts in the same column and comments end at the same right edge.
+- Step numbers start again at 1 in every algorithm.
+- A function declared in one algorithm is styled where the others call it.
+- Inside a block, type `algo` and a space at the start of a line to start the next algorithm. It writes `---` and the title, input and output rows.
+
+### Linking to a block
+
+Obsidian can link to any block that has an identifier. For a code block, write it on its own line right after the closing fence, followed by a blank line (or the end of the note):
+
+````
+```algo
+SiftUp(i)
+...
+```
+^SiftUp
+
+Text goes on here.
+````
+
+Then `[[Note#^SiftUp|SiftUp]]` jumps to the block, hovering shows it, and `![[Note#^SiftUp]]` embeds it in another note. It works the same for a [class block](#class-blocks), so the whole class has one link.
+
+Without the blank line after it, Obsidian reads the `^id` line as a paragraph of its own and the block cannot be linked.
+
+You do not need to write the identifier by hand. With the cursor in a block, run **Copy link to pseudocode block** from the command palette. It:
+
+- takes the identifier from the title (`SiftUp(i)` gives `^SiftUp`, `Priority Queue` gives `^PriorityQueue`), and adds a number if another block of the note has it;
+- adds the `^id` line after the block, or reuses the one that is there;
+- copies the link, for example `[[Note#^SiftUp|SiftUp]]`, to the clipboard.
+
+An algorithm inside a class block cannot be linked on its own: Obsidian cannot see inside a code block. Link the class, or keep the algorithm in a block of its own.
+
 ### Colours
 
 Keywords are bold, as in LaTeX, and each kind of token also gets a colour. The colours are the ones your theme uses for code, so they fit light and dark themes alike. Turn **Syntax colors** off in the settings for the plain black-and-white look.
@@ -95,9 +156,10 @@ To pick your own colours, set these variables from a CSS snippet:
 - Type `algo` and a space (or `algo` and **Tab**) at the start of a line in your note to create a block. The cursor waits on the empty title line. **Enter** or **Tab** then moves to `Input:`, to `Output:` and to the first step.
 - Or run **Insert pseudocode block** from the command palette (bind it to a hotkey under **Settings → Hotkeys**). It inserts the same block, with the cursor on the empty title line.
 - Inside an `algo` block, **Enter** keeps the indentation. It adds a level after a line ending in `do`, `then`, `else`, `repeat`, `loop`, `begin` or `:`, and after a loop or branch header such as `for i from 1 to n` or `while x > 0`.
-- Type `for` and a space (or `for` and **Tab**) at the start of a line to get `for i from 1 to n`, with `i` selected. Type over it, then press **Tab** for `1` and again for `n`.
+- Type `for` and a space (or `for` and **Tab**) at the start of a line to get `for i from 1 to n:` and an indented line below it, with `i` selected. Type over it, then press **Tab** for `1`, again for `n`, and once more to move into the loop.
+- Inside a block, `algo` and a space starts the next algorithm of a [class block](#class-blocks).
 - Type `mk` to get `$$` with the cursor between the dollars. **Tab** jumps out of the math.
-- `algo`, `for` and `mk` are the three built-in snippets. You can change them and add your own.
+- `algo` (two of them: in the note and inside a block), `for` and `mk` are the built-in snippets. You can change them and add your own.
 
 ## Snippets
 
@@ -110,7 +172,7 @@ Edit them under **Settings → Plain Pseudocode → Snippet definitions**. The t
 ### One snippet
 
 ```json
-{ "trigger": "for ", "replacement": "for ${0:i} from ${1:1} to ${2:n}", "options": "Ab" }
+{ "trigger": "for ", "replacement": "for ${0:i} from ${1:1} to ${2:n}:\n\t$3", "options": "Ab" }
 ```
 
 | Field | Meaning |
@@ -141,7 +203,7 @@ Inside `replacement`:
 | `[[0]]`, `[[1]]` | With `r`: the first and second capture group of the trigger. |
 | `\\$` | A literal dollar sign, where it would otherwise read as a tabstop. Math such as `$n$` or `$x_i$` needs no escaping: only `$` followed by a digit or by `{` and a digit is a tabstop. |
 
-**Enter** accepts the values that are left and starts the next line. On a header row, **Enter** moves to the next value instead, like **Tab**. A snippet can be expanded inside a tabstop of another one: when it is done, **Tab** carries on with the outer snippet. Editing somewhere else, moving the cursor away or **Undo** ends a snippet, and **Tab** is a normal Tab again.
+**Enter** accepts the values that are left and starts the next line. If the snippet has already made that line, as `for` does for its loop body, **Enter** moves into it instead of adding another. On a header row, **Enter** moves to the next value instead, like **Tab**. A snippet can be expanded inside a tabstop of another one: when it is done, **Tab** carries on with the outer snippet. Editing somewhere else, moving the cursor away or **Undo** ends a snippet, and **Tab** is a normal Tab again.
 
 When several triggers match, the one listed first wins. **Undo** right after an automatic expansion gives back the text you typed. Because this is JSON, a backslash in a regular expression is written twice: `\\d` for a digit.
 
@@ -153,12 +215,15 @@ Paste this over the definitions to try everything out.
 [
   // The default. "A" expands it without Tab, "b" keeps it to the start of a line.
   // The trigger ends with a space, so "foreach", "forall" and "format" can still be typed.
-  // Result: for i from 1 to n     (i selected, Tab goes to 1, then to n)
-  { "trigger": "for ", "replacement": "for ${0:i} from ${1:1} to ${2:n}", "options": "Ab" },
+  // Result: for i from 1 to n:    (i selected, Tab goes to 1, then n, then into the empty line below)
+  { "trigger": "for ", "replacement": "for ${0:i} from ${1:1} to ${2:n}:\n\t$3", "options": "Ab" },
 
   // The default that creates a block. "n" makes it run in the note, outside any code block.
   // Enter or Tab moves from the title ($0) to the input, the output and the first step.
   { "trigger": "algo ", "replacement": "```algo\\n$0\\nInput: $1\\nOutput: $2\\n$3\\n```", "options": "Abn" },
+
+  // The same word inside a block starts the next algorithm of a class block (no "n" option).
+  { "trigger": "algo ", "replacement": "---\\n$0\\nInput: $1\\nOutput: $2\\n$3", "options": "Ab" },
 
   // Another default. "t" keeps it out of math, so $mk$ can still be typed.
   // Result: $$ with the cursor between the dollars, then Tab to continue after the math.
@@ -221,6 +286,8 @@ Paste this over the definitions to try everything out.
 | Keywords | five lists | The words to show in bold. See [Keywords](#keywords). |
 | Enable snippets | On | Turns all snippets off without deleting them. |
 | Snippet definitions | `algo`, `for` and `mk` | See [Snippets](#snippets). |
+
+The command **Copy link to pseudocode block** has no setting and no default hotkey, see [Linking to a block](#linking-to-a-block).
 
 Changes apply at once to every block that is open.
 

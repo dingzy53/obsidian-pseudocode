@@ -1,6 +1,7 @@
-import { MarkdownRenderChild, Plugin, finishRenderMath, loadMathJax, renderMath } from "obsidian";
+import { MarkdownRenderChild, Notice, Plugin, finishRenderMath, loadMathJax, renderMath } from "obsidian";
 import { algoEditor } from "./editor.ts";
-import { parse } from "./parse.ts";
+import { blockLink } from "./link.ts";
+import { parse, parseGroup } from "./parse.ts";
 import { render, type MathFn } from "./render.ts";
 import { DEFAULT_SETTINGS, loadSettings, renderOptions, storedSettings, type Settings } from "./settings.ts";
 import { AlgoSettingTab } from "./settings-tab.ts";
@@ -43,7 +44,7 @@ class AlgoBlock extends MarkdownRenderChild {
     }
     // Nothing is awaited between clearing and filling, so overlapping redraws cannot double up.
     this.containerEl.empty();
-    render(parse(this.source), this.containerEl, math, renderOptions(this.plugin.settings));
+    render(parseGroup(this.source) ?? parse(this.source), this.containerEl, math, renderOptions(this.plugin.settings));
     if (usedMath) await finishRenderMath();
   }
 }
@@ -75,6 +76,30 @@ export default class PlainPseudocode extends Plugin {
         editor.replaceSelection(lead + TEMPLATE);
         // The cursor waits on the empty title line.
         editor.setCursor({ line: cur.line + (lead ? 1 : 0) + 1, ch: 0 });
+      },
+    });
+
+    this.addCommand({
+      id: "copy-block-link",
+      name: "Copy link to pseudocode block",
+      editorCheckCallback: (checking, editor, ctx) => {
+        const file = ctx.file;
+        if (!file) return false;
+        const lines = editor.getValue().split("\n");
+        const link = blockLink(lines, editor.getCursor().line);
+        if (!link) return false;
+        if (checking) return true;
+
+        if (link.insert) {
+          const { line, text } = link.insert;
+          editor.replaceRange(text, { line, ch: lines[line].length });
+        }
+        const markdown = this.app.fileManager.generateMarkdownLink(file, "", `#^${link.id}`, link.alias);
+        void navigator.clipboard.writeText(markdown).then(
+          () => new Notice(`Copied ${markdown}`),
+          () => new Notice("Could not copy the link"),
+        );
+        return true;
       },
     });
   }

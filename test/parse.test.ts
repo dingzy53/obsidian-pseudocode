@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parse, tokenize, opensBlock, declaredFunctions, compileKeywords, DEFAULT_KEYWORDS } from "../src/parse.ts";
+import { parse, tokenize, opensBlock, declaredFunctions, compileKeywords, DEFAULT_KEYWORDS, isSeparator, parseGroup } from "../src/parse.ts";
 
 const kinds = (s: string, options = {}) =>
   tokenize(s, options).map((t) => (t.t === "comment" ? "comment" : `${t.t}:${t.v}`));
@@ -216,4 +216,47 @@ test("opensBlock: loop and branch headers without do / then", () => {
 test("spaces before a comment are dropped", () => {
   assert.deepEqual(kinds("lo <- 1      // note").slice(-2), ["num:1", "comment"]);
   assert.deepEqual(kinds("lo <- x      // note").slice(-2), ["text: x", "comment"]);
+});
+
+test("parseGroup: a block without a separator is an ordinary block", () => {
+  assert.equal(parseGroup("Sort\nInput: A\nOutput: A\nx <- 1"), null);
+  assert.equal(parseGroup("Sort\nInput: A\nOutput: A\nx <- 1 -- 2"), null);
+  assert.equal(parseGroup("a\n--\nb"), null);
+});
+
+test("parseGroup: head and members", () => {
+  const g = parseGroup(
+    "Priority Queue\nData: max-heap H, size\nGlobals: -\na plain note\n---\nSiftUp(i)\nInput: i\nOutput: -\nx <- 1\n---\nInsert(p)\nInput: p\nOutput: -\nSiftUp(size)\n",
+  )!;
+  assert.equal(g.title, "Priority Queue");
+  assert.deepEqual(g.fields, [{ label: "Data", value: "max-heap H, size" }]);
+  assert.deepEqual(g.notes, ["a plain note"]);
+  assert.deepEqual(g.members.map((m) => m.title), ["SiftUp(i)", "Insert(p)"]);
+  // Each member reads exactly as it would alone.
+  assert.deepEqual(g.members[1], parse("Insert(p)\nInput: p\nOutput: -\nSiftUp(size)"));
+});
+
+test("parseGroup: the head may be empty or start with a labelled row", () => {
+  const bare = parseGroup("---\nA\nInput: x\nOutput: y\nz <- 1")!;
+  assert.deepEqual([bare.title, bare.fields, bare.notes, bare.members.length], ["", [], [], 1]);
+
+  const labelled = parseGroup("Data: H\n---\nA\nI\nO\nz <- 1")!;
+  assert.equal(labelled.title, "");
+  assert.deepEqual(labelled.fields, [{ label: "Data", value: "H" }]);
+});
+
+test("parseGroup: empty parts are skipped, separators may be indented or longer", () => {
+  const g = parseGroup("Q\n---\n\n---\nA\nI\nO\nx <- 1\n    -----  \nB\nI\nO\ny <- 2\n---\n")!;
+  assert.deepEqual(g.members.map((m) => m.title), ["A", "B"]);
+});
+
+test("parseGroup: windows line ends", () => {
+  const g = parseGroup("Q\r\n---\r\nA\r\nI\r\nO\r\nx <- 1\r\n")!;
+  assert.equal(g.title, "Q");
+  assert.deepEqual(g.members[0].steps.map((s) => s.text), ["x <- 1"]);
+});
+
+test("isSeparator", () => {
+  for (const l of ["---", "-----", "  ---", "--- "]) assert.ok(isSeparator(l), l);
+  for (const l of ["--", "- - -", "---x", "-", "x ---", "----- 1"]) assert.ok(!isSeparator(l), l);
 });

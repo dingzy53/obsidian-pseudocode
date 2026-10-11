@@ -95,19 +95,20 @@ test("indents after a loop header without do", () => {
 test("default snippet: for + space expands and Tab walks the values", () => {
   const e = editor(block("    |"));
   e.type("for ");
-  assert.equal(steps(e.show()), "    for [i] from 1 to n");
+  assert.equal(steps(e.show()), "    for [i] from 1 to n:\n        ");
   e.type("k");
   assert.ok(snippetTab(e.view, DEFAULTS));
-  assert.equal(steps(e.show()), "    for k from [1] to n");
+  assert.equal(steps(e.show()), "    for k from [1] to n:\n        ");
   assert.ok(snippetTab(e.view, DEFAULTS));
-  assert.equal(steps(e.show()), "    for k from 1 to [n]");
+  assert.equal(steps(e.show()), "    for k from 1 to [n]:\n        ");
   assert.ok(snippetShiftTab(e.view));
-  assert.equal(steps(e.show()), "    for k from [1] to n");
+  assert.equal(steps(e.show()), "    for k from [1] to n:\n        ");
   e.type("0");
   snippetTab(e.view, DEFAULTS);
   e.type("m-1");
+  // One more Tab goes into the loop, on the line below and one level deeper.
   assert.ok(snippetTab(e.view, DEFAULTS));
-  assert.equal(steps(e.show()), "    for k from 0 to m-1|");
+  assert.equal(steps(e.show()), "    for k from 0 to m-1:\n        |");
   // The snippet is finished: Tab is free again for indenting.
   assert.equal(snippetTab(e.view, DEFAULTS), false);
 });
@@ -117,7 +118,7 @@ test("default snippet: for + Tab expands too, without the space", () => {
   e.type("for");
   assert.equal(steps(e.show()), "    for|");
   assert.ok(snippetTab(e.view, DEFAULTS));
-  assert.equal(steps(e.show()), "    for [i] from 1 to n");
+  assert.equal(steps(e.show()), "    for [i] from 1 to n:\n        ");
 
   const other = editor(block("|"));
   other.type("foreach");
@@ -146,7 +147,7 @@ test("snippets work on every line of the block, header and comments included", (
     e.type(text);
     return e.show();
   };
-  assert.equal(typed("```algo\n|\n```", "for "), "```algo\nfor [i] from 1 to n\n```");
+  assert.equal(typed("```algo\n|\n```", "for "), "```algo\nfor [i] from 1 to n:\n    \n```");
   assert.equal(typed("```algo\nSort\nInput: array |\nOutput: A\n```", "mk"), "```algo\nSort\nInput: array $|$ \nOutput: A\n```");
   assert.equal(steps(typed(block("x <- 1 // |"), "mk")), "x <- 1 // $|$ ");
 });
@@ -173,15 +174,17 @@ test("mk does not fire inside math", () => {
 test("a snippet inside a tabstop of another: Tab returns to the outer one", () => {
   const e = editor(block("|"));
   e.type("for mk");
-  assert.equal(steps(e.show()), "for $|$  from 1 to n");
+  assert.equal(steps(e.show()), "for $|$  from 1 to n:\n    ");
   e.type("i");
   snippetTab(e.view, DEFAULTS);
-  assert.equal(steps(e.show()), "for $i$ | from 1 to n");
+  assert.equal(steps(e.show()), "for $i$ | from 1 to n:\n    ");
   snippetTab(e.view, DEFAULTS);
-  assert.equal(steps(e.show()), "for $i$  from [1] to n");
+  assert.equal(steps(e.show()), "for $i$  from [1] to n:\n    ");
   snippetTab(e.view, DEFAULTS);
-  assert.equal(steps(e.show()), "for $i$  from 1 to [n]");
-  snippetTab(e.view, DEFAULTS);
+  assert.equal(steps(e.show()), "for $i$  from 1 to [n]:\n    ");
+  // Into the loop, and the snippet is over.
+  assert.ok(snippetTab(e.view, DEFAULTS));
+  assert.equal(steps(e.show()), "for $i$  from 1 to n:\n    |");
   assert.equal(snippetTab(e.view, DEFAULTS), false);
 });
 
@@ -192,7 +195,7 @@ test("editing outside the current value ends the snippet", () => {
   const line = deleted.view.state.doc.line(5);
   deleted.view.dispatch({ changes: { from: line.from, to: line.to, insert: "for x in S:" }, selection: { anchor: line.from + 11 } });
   assert.equal(snippetTab(deleted.view, DEFAULTS), false);
-  assert.equal(steps(deleted.show()), "for x in S:|");
+  assert.equal(steps(deleted.show()), "for x in S:|\n    ");
 
   const elsewhere = editor(block("|"));
   elsewhere.type("for k");
@@ -218,7 +221,7 @@ test("moving the cursor out of the current value ends the snippet", () => {
 test("a trigger that is already in the document expands too (input methods)", () => {
   const e = editor(block("    for |"));
   assert.ok(expandAtCursor(e.view, DEFAULTS));
-  assert.equal(steps(e.show()), "    for [i] from 1 to n");
+  assert.equal(steps(e.show()), "    for [i] from 1 to n:\n        ");
   assert.equal(expandAtCursor(e.view, DEFAULTS), false);
 
   assert.equal(expandAtCursor(editor(block("wait for |")).view, DEFAULTS), false);
@@ -237,9 +240,9 @@ test("Enter ends the snippet", () => {
   e.type("for ");
   snippetTab(e.view, DEFAULTS);
   snippetTab(e.view, DEFAULTS);
-  snippetTab(e.view, DEFAULTS);
   assert.ok(smartEnter(e.view));
-  assert.equal(steps(e.show()), "for i from 1 to n\n    |");
+  // The loop line below is already there: Enter goes into it instead of making another.
+  assert.equal(steps(e.show()), "for i from 1 to n:\n    |");
   assert.equal(snippetTab(e.view, DEFAULTS), false);
 });
 
@@ -247,13 +250,41 @@ test("Enter while filling in a snippet keeps the values and the line whole", () 
   const untouched = editor(block("|"));
   untouched.type("for ");
   assert.ok(smartEnter(untouched.view));
-  assert.equal(steps(untouched.show()), "for i from 1 to n\n    |");
+  assert.equal(steps(untouched.show()), "for i from 1 to n:\n    |");
 
   const typed = editor(block("    |"));
   typed.type("for k");
   assert.ok(smartEnter(typed.view));
-  assert.equal(steps(typed.show()), "    for k from 1 to n\n        |");
+  assert.equal(steps(typed.show()), "    for k from 1 to n:\n        |");
   assert.equal(snippetTab(typed.view, DEFAULTS), false);
+});
+
+test("Enter on a body line of a longer snippet still starts the next line", () => {
+  const list = snippets(
+    '[{ "trigger": "fn", "replacement": "function ${0:Name}(${1:args})\\n\\t$2\\n\\treturn ${3:result}", "options": "b" },' +
+      '{ "trigger": "ife", "replacement": "if ${0:cond} then\\n\\t$1\\nelse\\n\\t$2", "options": "b" }]',
+  );
+  // On the first line, the body is the empty line below: Enter goes there.
+  const head = editor(block("|"));
+  head.type("fn", list);
+  assert.ok(snippetTab(head.view, list));
+  assert.ok(smartEnter(head.view));
+  assert.equal(steps(head.show()), "function Name(args)\n    |\n    return result");
+
+  // On the body, the next value is `return result` and not an empty line: a new line is made.
+  head.type("x <- 1");
+  assert.ok(smartEnter(head.view));
+  assert.equal(steps(head.show()), "function Name(args)\n    x <- 1\n    |\n    return result");
+
+  const branch = editor(block("|"));
+  branch.type("ife", list);
+  assert.ok(snippetTab(branch.view, list));
+  branch.type("x");
+  snippetTab(branch.view, list);
+  branch.type("y <- 1");
+  assert.ok(smartEnter(branch.view));
+  assert.equal(steps(branch.show()), "if x then\n    y <- 1\n    |\nelse\n    ");
+  assert.equal(snippetTab(branch.view, list), false);
 });
 
 test("Enter with a selection outside a snippet is left to the editor", () => {
@@ -333,7 +364,8 @@ test("the block shortcut only runs in the note text, at the start of a line", ()
   };
   assert.equal(typed("the |", "algo "), "the algo |");
   assert.equal(typed("|", "algorithm "), "algorithm |");
-  assert.equal(steps(typed(block("|"), "algo ")), "algo |");
+  // Inside a block, the same word starts the next algorithm instead (see the class block tests).
+  assert.equal(steps(typed(block("|"), "algo ")), "---\n|\nInput: \nOutput: \n");
   assert.equal(typed("```python\n|\n```", "algo "), "```python\nalgo |\n```");
   assert.equal(typed("```\n|\n```", "algo "), "```\nalgo |\n```");
   // After a closed block the note text starts again.
@@ -349,4 +381,29 @@ test("a fence inside a longer fence does not start a block", () => {
   assert.ok(press(doc.replace("|", "while x do|")).startsWith("D:"));
   // A tilde fence is not closed by backticks.
   assert.equal(steps(press("~~~algo\nT\nI\nO\n```\nwhile x do|\n~~~").slice(2)), "```\nwhile x do\n    |");
+});
+
+test("a class block: algo + space starts the next algorithm, and Enter walks its header", () => {
+  const e = editor("```algo\nQueue\nData: H\n---\nSiftUp(i)\nInput: i\nOutput: -\nx <- 1\n|\n```");
+  e.type("algo ");
+  assert.equal(e.show(), "```algo\nQueue\nData: H\n---\nSiftUp(i)\nInput: i\nOutput: -\nx <- 1\n---\n|\nInput: \nOutput: \n\n```");
+  e.type("Insert(p)");
+  assert.ok(smartEnter(e.view));
+  assert.match(e.show(), /\nInsert\(p\)\nInput: \|\nOutput: \n/);
+  e.type("p");
+  assert.ok(smartEnter(e.view));
+  e.type("-");
+  assert.ok(smartEnter(e.view));
+  e.type("while x do");
+  // From here on it is a step line again, with the indentation of one.
+  assert.ok(smartEnter(e.view));
+  assert.match(e.show(), /\nOutput: -\nwhile x do\n {4}\|\n```$/);
+});
+
+test("rows after a separator are header rows again, even deep in the block", () => {
+  // Line 4 after the fence is a step in a plain block, but the first line of a member here.
+  const doc = "```algo\nT\nI\nO\nx <- 1\ny <- 2\n---\nSiftUp(i):|\nInput: i\nOutput: -\n```";
+  assert.match(press(doc), /^H:.*SiftUp\(i\):\n\|\nInput/s);
+  const indented = "```algo\nT\nI\nO\nx <- 1\n    ---\nA(i) do|\nI\nO\n```";
+  assert.match(press(indented), /A\(i\) do\n\|\nI/);
 });

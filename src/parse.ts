@@ -132,6 +132,48 @@ export function parse(source: string): Model {
   };
 }
 
+// A line of dashes on its own splits a class block into its algorithms. It may be indented.
+const SEPARATOR = /^\s*-{3,}\s*$/;
+
+export const isSeparator = (line: string): boolean => SEPARATOR.test(line);
+
+// A class block: a head of its own, then one model for every algorithm.
+export interface Group {
+  title: string;
+  fields: Field[];
+  // Lines of the head that are neither the title nor a labelled row.
+  notes: string[];
+  members: Model[];
+}
+
+// Reads a block that is split by separator lines, or returns null for an ordinary block.
+export function parseGroup(source: string): Group | null {
+  const lines = source.replace(/\r\n?/g, "\n").split("\n");
+  if (!lines.some(isSeparator)) return null;
+
+  const parts: string[][] = [[]];
+  for (const line of lines) {
+    if (isSeparator(line)) parts.push([]);
+    else parts[parts.length - 1].push(line);
+  }
+  const [head, ...rest] = parts;
+
+  while (head.length && !head[0].trim()) head.shift();
+  const untitled = head.length > 0 && fieldOf(head[0]) !== null;
+  const group: Group = { title: untitled ? "" : (head.shift() ?? "").trim(), fields: [], notes: [], members: [] };
+  for (const line of head) {
+    const field = fieldOf(line);
+    if (field) {
+      if (field.value && field.value !== "-") group.fields.push(field);
+    } else if (line.trim()) group.notes.push(line.trim());
+  }
+
+  for (const part of rest) {
+    if (part.some((l) => l.trim())) group.members.push(parse(part.join("\n")));
+  }
+  return group;
+}
+
 const DECLARATION = /^(?:function|procedure)\s+([A-Za-z_][\w-]*)/i;
 
 // Names introduced by `function foo(...)` / `procedure foo(...)`, so calls to them are styled too.

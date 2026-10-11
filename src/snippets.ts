@@ -34,15 +34,18 @@ export interface Expansion {
 }
 
 export const DEFAULT_SNIPPETS = `[
-  // Type "for" and a space at the start of a line. Tab moves to the next value.
-  { "trigger": "for ", "replacement": "for \${0:i} from \${1:1} to \${2:n}", "options": "Ab" },
+  // Type "for" and a space at the start of a line. Tab moves to the next value, then into the loop.
+  { "trigger": "for ", "replacement": "for \${0:i} from \${1:1} to \${2:n}:\\n\\t$3", "options": "Ab" },
 
   // Type "mk" for inline math. Tab leaves the math.
   { "trigger": "mk", "replacement": "$\${0}$ $1", "options": "At" },
 
   // In the note: type "algo" and a space at the start of a line for a new block.
   // Enter or Tab moves from the title to the input, the output and the first step.
-  { "trigger": "algo ", "replacement": "\`\`\`algo\\n$0\\nInput: $1\\nOutput: $2\\n$3\\n\`\`\`", "options": "Abn" }
+  { "trigger": "algo ", "replacement": "\`\`\`algo\\n$0\\nInput: $1\\nOutput: $2\\n$3\\n\`\`\`", "options": "Abn" },
+
+  // Inside a block: the same word starts the next algorithm of a class block.
+  { "trigger": "algo ", "replacement": "---\\n$0\\nInput: $1\\nOutput: $2\\n$3", "options": "Ab" }
 ]
 `;
 

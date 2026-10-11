@@ -1,4 +1,4 @@
-import { declaredFunctions, tokenize, type Keywords, type Model, type Token } from "./parse.ts";
+import { declaredFunctions, tokenize, type Field, type Group, type Keywords, type Model, type Token, type TokenizeOptions } from "./parse.ts";
 
 // Builds a DOM node for `$tex$`. Injected so rendering never touches MathJax directly.
 export type MathFn = (tex: string) => Node;
@@ -26,7 +26,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return parent.createEl(tag, { cls, text });
 }
 
-export function render(model: Model, root: HTMLElement, math: MathFn, options: RenderOptions): void {
+export function render(model: Model | Group, root: HTMLElement, math: MathFn, options: RenderOptions): void {
   const marker = options.commentMarker.trim();
 
   const appendComment = (parent: HTMLElement, tokens: Token[], cls: string) => {
@@ -69,47 +69,71 @@ export function render(model: Model, root: HTMLElement, math: MathFn, options: R
   if (options.fontSize !== 100) outer.style.setProperty("--algo-font-size", `${options.fontSize / 100}em`);
 
   const box = el(outer, "div", "algo-box");
-  const numbered = model.steps.filter((s) => !s.blank).length;
-  box.style.setProperty("--algo-ln-w", `${String(numbered).length}ch`);
+  const group = "members" in model;
+  const models = group ? model.members : [model];
+  // Numbers restart in every member, but they share one column, so the steps of all members line up.
+  const widest = Math.max(0, ...models.map((m) => m.steps.filter((s) => !s.blank).length));
+  box.style.setProperty("--algo-ln-w", `${String(widest).length}ch`);
 
-  if (model.title) el(box, "div", "algo-title", model.title);
+  // Names declared in one member are styled in every member that calls them.
+  const tokenizeOptions: TokenizeOptions = {
+    keywords: options.keywords,
+    functions: declaredFunctions(models.flatMap((m) => m.steps)),
+  };
 
-  if (model.fields.length) {
-    const grid = el(box, "div", "algo-io");
-    for (const { label, value } of model.fields) {
+  const drawFields = (parent: HTMLElement, fields: Field[]) => {
+    if (!fields.length) return;
+    const grid = el(parent, "div", "algo-io");
+    for (const { label, value } of fields) {
       el(grid, "span", "algo-io-label", `${label}:`);
       appendTokens(el(grid, "span", "algo-io-value"), tokenize(value, { plain: true }));
     }
+  };
+
+  // One algorithm: title, header rows and numbered steps.
+  const drawModel = (parent: HTMLElement, m: Model) => {
+    if (m.title) el(parent, "div", "algo-title", m.title);
+    drawFields(parent, m.fields);
+
+    const body = el(parent, "div", "algo-body");
+    let n = 0;
+    m.steps.forEach((step, i) => {
+      let level = step.level;
+      if (step.blank) {
+        // Keep scope guides unbroken across a spacer row.
+        const prev = m.steps[i - 1];
+        const next = m.steps.slice(i + 1).find((s) => !s.blank);
+        level = prev && next ? Math.min(prev.blank ? 0 : prev.level, next.level) : 0;
+      }
+      const row = el(body, "div", step.blank ? "algo-line algo-blank" : "algo-line");
+      if (options.lineNumbers) el(row, "span", "algo-ln", step.blank ? "" : String(++n));
+      for (let k = 0; k < level; k++) el(row, "span", "algo-indent");
+      if (step.blank) return;
+
+      const tokens = tokenize(step.text, tokenizeOptions);
+      const last = tokens[tokens.length - 1];
+      if (last.t === "comment" && tokens.length === 1) {
+        // A comment on its own line stays where it is written.
+        appendComment(el(row, "span", "algo-text"), last.c, "algo-comment algo-comment-alone");
+      } else if (last.t === "comment" && options.commentAlign === "right") {
+        // A comment after a step goes to the right edge, or below the step when both do not fit.
+        const content = el(row, "span", "algo-content");
+        appendTokens(el(content, "span", "algo-text"), tokens.slice(0, -1));
+        appendComment(content, last.c, "algo-comment algo-comment-right");
+      } else {
+        appendTokens(el(row, "span", "algo-text"), tokens);
+      }
+    });
+  };
+
+  if (!group) {
+    drawModel(box, model);
+    return;
   }
 
-  const body = el(box, "div", "algo-body");
-  const tokenizeOptions = { keywords: options.keywords, functions: declaredFunctions(model.steps) };
-  let n = 0;
-  model.steps.forEach((step, i) => {
-    let level = step.level;
-    if (step.blank) {
-      // Keep scope guides unbroken across a spacer row.
-      const prev = model.steps[i - 1];
-      const next = model.steps.slice(i + 1).find((s) => !s.blank);
-      level = prev && next ? Math.min(prev.blank ? 0 : prev.level, next.level) : 0;
-    }
-    const row = el(body, "div", step.blank ? "algo-line algo-blank" : "algo-line");
-    if (options.lineNumbers) el(row, "span", "algo-ln", step.blank ? "" : String(++n));
-    for (let k = 0; k < level; k++) el(row, "span", "algo-indent");
-    if (step.blank) return;
-
-    const tokens = tokenize(step.text, tokenizeOptions);
-    const last = tokens[tokens.length - 1];
-    if (last.t === "comment" && tokens.length === 1) {
-      // A comment on its own line stays where it is written.
-      appendComment(el(row, "span", "algo-text"), last.c, "algo-comment algo-comment-alone");
-    } else if (last.t === "comment" && options.commentAlign === "right") {
-      // A comment after a step goes to the right edge, or below the step when both do not fit.
-      const content = el(row, "span", "algo-content");
-      appendTokens(el(content, "span", "algo-text"), tokens.slice(0, -1));
-      appendComment(content, last.c, "algo-comment algo-comment-right");
-    } else {
-      appendTokens(el(row, "span", "algo-text"), tokens);
-    }
-  });
+  box.addClass("algo-group");
+  if (model.title) el(box, "div", "algo-title algo-group-title", model.title);
+  drawFields(box, model.fields);
+  for (const note of model.notes) appendTokens(el(box, "div", "algo-group-note"), tokenize(note, { plain: true }));
+  for (const member of model.members) drawModel(el(box, "div", "algo-member"), member);
 }

@@ -15,8 +15,17 @@ test("default definitions load", () => {
   assert.equal(error, null);
   assert.deepEqual(
     snippets.map((s) => [s.trigger, s.auto, s.lineStart, s.where, s.note]),
-    [["for ", true, true, null, false], ["mk", true, false, "text", false], ["algo ", true, true, null, true]],
+    [
+      ["for ", true, true, null, false],
+      ["mk", true, false, "text", false],
+      ["algo ", true, true, null, true],
+      ["algo ", true, true, null, false],
+    ],
   );
+  // The loop line ends with a colon and leaves an indented line below it.
+  assert.deepEqual(expand(snippets[0].replacement, [], "", "    ").text, "for i from 1 to n:\n    ");
+  // Inside a block the same word makes the next algorithm of a class block.
+  assert.equal(expand(snippets[3].replacement, [], "", "").text, "---\n\nInput: \nOutput: \n");
   assert.equal(expand(snippets[2].replacement, [], "", "").text, "```algo\n\nInput: \nOutput: \n\n```");
   // Dollar, tabstop 0, dollar, space, tabstop 1.
   assert.deepEqual(expand(snippets[1].replacement, [], "", ""), {

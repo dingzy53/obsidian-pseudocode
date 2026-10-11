@@ -52,6 +52,19 @@
   margin-right: 0.8em;
 }
 
+/* A class block: one box with a head of its own, then one member per algorithm.
+   The members share the width of the box, so steps and comments line up between them. */
+.algo-group-note {
+  padding-bottom: 0.3em;
+  color: var(--text-muted);
+}
+
+.algo-member + .algo-member {
+  margin-top: 0.4em;
+  padding-top: 0.3em;
+  border-top: 1px solid var(--text-normal);
+}
+
 .algo-line {
   display: flex;
   align-items: stretch;

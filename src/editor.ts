@@ -5,28 +5,23 @@ import {
   StateField,
   type ChangeDesc,
   type Extension,
+  type EditorState,
   type Text,
 } from "@codemirror/state";
 import { Decoration, EditorView, keymap } from "@codemirror/view";
 import { indentUnit } from "@codemirror/language";
-import { fieldOf, opensBlock } from "./parse.ts";
+import { findFences } from "./link.ts";
+import { fieldOf, isSeparator, opensBlock } from "./parse.ts";
 import { expand, matchSnippet, type Match, type Range, type Snippet } from "./snippets.ts";
 
-const FENCE = /^\s*(`{3,}|~{3,})(.*)$/;
-
-// The fenced code block a line sits in, or null in the note text.
-// `index` counts lines from the opening fence (0 = first line after it).
+// The algo-aware view of a line: whether it sits in a fenced block, and which row of its header it is.
+// `index` counts lines from the opening fence, or from the last separator of a class block (0 = first line).
 function blockAt(doc: Text, lineNo: number): { algo: boolean; index: number } | null {
-  let open: { mark: string; line: number; algo: boolean } | null = null;
-  let n = 0;
-  for (const text of doc.iterLines(1, lineNo)) {
-    n++;
-    const m = FENCE.exec(text);
-    if (!m) continue;
-    if (!open) open = { mark: m[1], line: n, algo: /^\s*algo\b/.test(m[2]) };
-    else if (m[1][0] === open.mark[0] && m[1].length >= open.mark.length && !m[2].trim()) open = null;
-  }
-  return open && { algo: open.algo, index: lineNo - open.line - 1 };
+  const fence = findFences(doc.iterLines(1, lineNo)).at(-1);
+  if (!fence || fence.close !== null) return null;
+  let start = fence.open + 1;
+  for (let n = start + 1; n < lineNo; n++) if (isSeparator(doc.line(n).text)) start = n;
+  return { algo: fence.algo, index: lineNo - start - 1 };
 }
 
 // Finds the snippet to expand on line `lineNo`. Most snippets belong inside an algo block.
@@ -164,6 +159,15 @@ export function expandAtCursor(view: EditorView, snippets: Snippet[]): boolean {
   return !!match;
 }
 
+function gotoStop(view: EditorView, session: Session, active: number): void {
+  const next: Session = { ...session, active };
+  view.dispatch({
+    selection: select(next.stops[active]),
+    effects: setSession.of(finished(next) ? null : next),
+    scrollIntoView: true,
+  });
+}
+
 function moveStop(view: EditorView, dir: 1 | -1): boolean {
   let session = view.state.field(sessionField, false) ?? null;
   if (!session) return false;
@@ -178,13 +182,20 @@ function moveStop(view: EditorView, dir: 1 | -1): boolean {
     session = session.parent;
     active = session.active + 1;
   }
-  const next: Session = { ...session, active };
-  view.dispatch({
-    selection: select(next.stops[active]),
-    effects: setSession.of(finished(next) ? null : next),
-    scrollIntoView: true,
-  });
+  gotoStop(view, session, active);
   return true;
+}
+
+// The snippet already made the empty line that Enter would make: the first value that is not on this line
+// sits alone on the line right below. Returns its number, or -1 when Enter should make the line itself.
+function bodyStop(state: EditorState, session: Session, lineNo: number): number {
+  const { doc } = state;
+  for (let i = session.active + 1; i < session.stops.length; i++) {
+    const at = doc.lineAt(session.stops[i][0].from);
+    if (session.stops[i].every((r) => doc.lineAt(r.from).number === lineNo)) continue;
+    return at.number === lineNo + 1 && !at.text.trim() ? i : -1;
+  }
+  return -1;
 }
 
 // Tab: expand the trigger before the cursor, else jump to the next tabstop, else leave Tab alone.
@@ -216,6 +227,14 @@ export function smartEnter(view: EditorView): boolean {
   const step = block.index >= 3 && !fieldOf(line.text);
   // A header row is one line: there, Enter moves on to the next value of the snippet instead.
   if (inSnippet && !step && moveStop(view, 1)) return true;
+  if (inSnippet && step) {
+    const session = view.state.field(sessionField, false)!;
+    const body = bodyStop(view.state, session, line.number);
+    if (body >= 0) {
+      gotoStop(view, session, body);
+      return true;
+    }
+  }
 
   const lead = /^\s*/.exec(line.text)![0];
   const before = line.text.slice(0, pos - line.from);
