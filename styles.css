@@ -196,16 +196,21 @@
 
 /* Settings tab and editor. */
 
-.algo-keywords-input {
+.algo-keywords textarea {
   width: 24em;
   max-width: 100%;
-  height: 4.6em;
   font-size: var(--font-ui-smaller);
   resize: vertical;
 }
 
+/* The snippet box and its status line sit under the row, across its whole width. */
+.algo-snippets-row {
+  flex-wrap: wrap;
+}
+
 .algo-snippets-input {
   width: 100%;
+  margin-top: 0.6em;
   min-height: 12em;
   font-family: var(--font-monospace);
   font-size: var(--font-ui-smaller);
@@ -213,6 +218,7 @@
 }
 
 .algo-snippets-status {
+  width: 100%;
   padding-top: 0.4em;
 }
 

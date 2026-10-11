@@ -17,7 +17,8 @@ import { expand, matchSnippet, type Match, type Range, type Snippet } from "./sn
 // The algo-aware view of a line: whether it sits in a fenced block, and which row of its header it is.
 // `index` counts lines from the opening fence, or from the last separator of a class block (0 = first line).
 function blockAt(doc: Text, lineNo: number): { algo: boolean; index: number } | null {
-  const fence = findFences(doc.iterLines(1, lineNo)).at(-1);
+  const fences = findFences(doc.iterLines(1, lineNo));
+  const fence = fences[fences.length - 1];
   if (!fence || fence.close !== null) return null;
   let start = fence.open + 1;
   for (let n = start + 1; n < lineNo; n++) if (isSeparator(doc.line(n).text)) start = n;

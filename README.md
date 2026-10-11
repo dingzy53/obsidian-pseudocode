@@ -128,7 +128,7 @@ You do not need to write the identifier by hand. With the cursor in a block, run
 
 - takes the identifier from the title (`SiftUp(i)` gives `^SiftUp`, `Priority Queue` gives `^PriorityQueue`), and adds a number if another block of the note has it;
 - adds the `^id` line after the block, or reuses the one that is there;
-- copies the link, for example `[[Note#^SiftUp|SiftUp]]`, to the clipboard.
+- copies the link, for example `[[Note#^SiftUp|SiftUp]]`, to the clipboard. This is the only thing the plugin does with the clipboard: it writes that link and never reads what is there.
 
 An algorithm inside a class block cannot be linked on its own: Obsidian cannot see inside a code block. Link the class, or keep the algorithm in a block of its own.
 
@@ -289,11 +289,11 @@ Paste this over the definitions to try everything out.
 
 The command **Copy link to pseudocode block** has no setting and no default hotkey, see [Linking to a block](#linking-to-a-block).
 
-Changes apply at once to every block that is open.
+Changes apply at once to every block that is open. Every setting can be found with the search box of the Obsidian settings.
 
 ## Install
 
-Search for **Plain Pseudocode** under **Settings → Community plugins → Browse**. To install manually, download `main.js`, `manifest.json` and `styles.css` from the [latest release](../../releases/latest) into `<vault>/.obsidian/plugins/plain-pseudocode/` and enable the plugin.
+Needs Obsidian 1.13 or later. Search for **Plain Pseudocode** under **Settings → Community plugins → Browse**. To install manually, download `main.js`, `manifest.json` and `styles.css` from the [latest release](../../releases/latest) into `<vault>/.obsidian/plugins/plain-pseudocode/` and enable the plugin.
 
 ## Styling
 

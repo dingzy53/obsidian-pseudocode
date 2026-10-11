@@ -94,14 +94,20 @@ export default class PlainPseudocode extends Plugin {
           const { line, text } = link.insert;
           editor.replaceRange(text, { line, ch: lines[line].length });
         }
-        const markdown = this.app.fileManager.generateMarkdownLink(file, "", `#^${link.id}`, link.alias);
-        void navigator.clipboard.writeText(markdown).then(
-          () => new Notice(`Copied ${markdown}`),
-          () => new Notice("Could not copy the link"),
-        );
+        void this.copy(this.app.fileManager.generateMarkdownLink(file, "", `#^${link.id}`, link.alias));
         return true;
       },
     });
+  }
+
+  // The only use of the clipboard: the link is written to it, nothing is read from it.
+  private async copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      new Notice(`Copied ${text}`);
+    } catch {
+      new Notice("Could not copy the link");
+    }
   }
 
   // Reads the snippet text from the settings. On a mistake the last working set stays active.
