@@ -45,6 +45,16 @@ test("an id that is already there is reused", () => {
   assert.deepEqual(blockLink(lines(note), 2), { id: "heap-up", alias: "SiftUp", insert: null });
 });
 
+test("an existing id without a blank line after it gets one", () => {
+  // `^id` straight above another fence or text is a paragraph, not an id of the block.
+  const note = "```algo\nA\nI\nO\nx\n```\n^A\n```algo\nB";
+  assert.deepEqual(blockLink(lines(note), 1), { id: "A", alias: "A", insert: { line: 6, text: "\n" } });
+  assert.deepEqual(blockLink(lines("```algo\nA\nI\nO\nx\n```\n^A\ntext"), 1)!.insert, { line: 6, text: "\n" });
+  // At the end of the note, or with the blank line there, nothing is added.
+  assert.equal(blockLink(lines("```algo\nA\nI\nO\nx\n```\n^A"), 1)!.insert, null);
+  assert.equal(blockLink(lines("```algo\nA\nI\nO\nx\n```\n^A\n\n```algo\nB"), 1)!.insert, null);
+});
+
 test("text or a fence right after the fence is kept apart from the id", () => {
   const next = blockLink(lines("```algo\nA\nI\nO\nx\n```\nlooks like text"), 1)!;
   assert.equal(next.insert!.text, "\n^A\n");
@@ -89,8 +99,8 @@ test("an id that is taken gets a number, wherever the other one is written", () 
   assert.equal(blockLink(note, 4)!.id, "CompleteBinaryTree-2");
   assert.equal(blockLink(note, 10)!.id, "Para-2");
   assert.equal(blockLink(note, 23)!.id, "HeapSort-2");
-  // The first one already has its id.
-  assert.deepEqual(blockLink(note, 16), { id: "HeapSort", alias: "HeapSort", insert: null });
+  // The first one already has its id. It sits right above a fence, so the blank line it needs is added.
+  assert.deepEqual(blockLink(note, 16), { id: "HeapSort", alias: "HeapSort", insert: { line: 21, text: "\n" } });
 });
 
 test("the title of a class block is its first line; untitled blocks fall back", () => {

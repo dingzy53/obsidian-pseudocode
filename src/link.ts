@@ -76,7 +76,13 @@ export function blockLink(lines: string[], at: number): BlockLink | null {
   const title = titleOf(lines, fence);
   const alias = aliasFromTitle(title);
   const own = OWN_LINE.exec(lines[fence.close + 1] ?? "");
-  if (own) return { id: own[1], alias: alias || own[1], insert: null };
+  if (own) {
+    // An id that sits right above more text is a paragraph of its own: give it the blank line it needs.
+    const after = lines[fence.close + 2];
+    const gap = after !== undefined && after.trim() !== "";
+    const insert = gap ? { line: fence.close + 1, text: "\n" } : null;
+    return { id: own[1], alias: alias || own[1], insert };
+  }
 
   const taken = new Set<string>();
   for (const line of lines) {
