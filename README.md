@@ -1,5 +1,10 @@
 # Plain Pseudocode
 
+[![Release](https://img.shields.io/github/v/release/dingzy53/obsidian-pseudocode)](https://github.com/dingzy53/obsidian-pseudocode/releases/latest)
+[![Downloads](https://img.shields.io/badge/dynamic/json?label=downloads&logo=obsidian&color=7c3aed&query=%24%5B%22plain-pseudocode%22%5D.downloads&url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json)](https://community.obsidian.md/plugins/plain-pseudocode)
+[![Obsidian](https://img.shields.io/badge/Obsidian-1.13.0%2B-7c3aed?logo=obsidian)](https://obsidian.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Write pseudocode as plain indented text in Obsidian and get a centred, line-numbered block with bold, coloured keywords, indentation guides and right-aligned comments. Rendering is pure text: no LaTeX, no images, no dependencies.
 
 ````
@@ -19,6 +24,38 @@ while lo <= hi do
 return -1
 ```
 ````
+
+## Features
+
+- Plain indented text in, a centred, line-numbered block out.
+- Bold, coloured keywords, indentation guides and right-aligned comments.
+- Several related algorithms in one box ([class blocks](#class-blocks)).
+- Snippets and smart Enter for fast typing ([quick input](#quick-input)).
+- One command to link to a block ([linking](#linking-to-a-block)).
+
+## Requirements
+
+- Obsidian 1.13.0 or newer, on desktop or mobile.
+
+## Installation
+
+**From the community directory** (recommended)
+
+1. Open **Settings → Community plugins** and turn on community plugins if asked.
+2. Select **Browse**, search for **Plain Pseudocode**, then select **Install** and **Enable**.
+
+You can also open the plugin's page: [community.obsidian.md/plugins/plain-pseudocode](https://community.obsidian.md/plugins/plain-pseudocode).
+
+**Manually**
+
+1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/dingzy53/obsidian-pseudocode/releases/latest).
+2. In **Settings → Community plugins**, select the folder icon next to **Installed plugins**. This opens `<vault>/.obsidian/plugins/`.
+3. Create a folder named `plain-pseudocode` there and put the three files in it.
+4. Select the reload icon next to **Installed plugins**, then enable **Plain Pseudocode**.
+
+**Beta versions:** install [BRAT](https://github.com/TfTHacker/obsidian42-brat) and add `dingzy53/obsidian-pseudocode`.
+
+**Update or remove:** select **Check for updates** or **Uninstall** in **Settings → Community plugins**.
 
 ## Syntax
 
@@ -291,13 +328,15 @@ The command **Copy link to pseudocode block** has no setting and no default hotk
 
 Changes apply at once to every block that is open. Every setting can be found with the search box of the Obsidian settings.
 
-## Install
-
-Needs Obsidian 1.13 or later. Search for **Plain Pseudocode** under **Settings → Community plugins → Browse**. To install manually, download `main.js`, `manifest.json` and `styles.css` from the [latest release](../../releases/latest) into `<vault>/.obsidian/plugins/plain-pseudocode/` and enable the plugin.
-
 ## Styling
 
 Colours and fonts follow your theme. Override any `.algo-*` rule from a CSS snippet (see `styles.css`), or just the [colour variables](#colours).
+
+## Privacy and security
+
+- No network access, and no files outside the vault.
+- **Clipboard:** written only by **Copy link to pseudocode block**, never read.
+- **Note changes:** the same command adds a `^id` line after the block, if it has none. Nothing else edits your notes.
 
 ## License
 
