@@ -25,6 +25,8 @@ return -1
 ```
 ````
 
+<img src="docs/images/hero.png" alt="The example above, rendered" width="383">
+
 ## Features
 
 - Plain indented text in, a centred, line-numbered block out.
@@ -135,6 +137,8 @@ SiftUp(size)
 ```
 ^PriorityQueue
 ````
+
+<img src="docs/images/class-block.png" alt="A rendered class block" width="322">
 
 - The head is the title on its first line, then labelled rows such as `Data:` or `Globals:`. Any other line there is shown as a short note. It has no `Input` and `Output` of its own, and it may be empty.
 - Each algorithm after a `---` is written exactly like a block of its own: title, input, output, steps.
