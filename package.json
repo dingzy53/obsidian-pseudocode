@@ -17,6 +17,8 @@
     "pseudocode",
     "algorithm"
   ],
+  "author": "Ding Zheng Yuan",
+  "repository": { "type": "git", "url": "git+https://github.com/dingzy53/obsidian-pseudocode.git" },
   "license": "MIT",
   "devDependencies": {
     "@codemirror/language": "^6.11.0",

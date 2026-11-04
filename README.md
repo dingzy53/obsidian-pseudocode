@@ -301,4 +301,4 @@ Colours and fonts follow your theme. Override any `.algo-*` rule from a CSS snip
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) © 2026 Ding Zheng Yuan
