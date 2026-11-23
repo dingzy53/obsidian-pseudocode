@@ -1,6 +1,6 @@
 # PLAN: fix obsidian / CodeMirror peer dependency conflict on fresh install
 
-> Branch: `fix/codemirror-peer-deps` (from `main`) · Date: 2026-11-23 · Status: Planned (not yet implemented).
+> Branch: `fix/codemirror-peer-deps` (from `main`) · Date: 2026-11-23 · Status: Implemented and verified.
 
 ## Context & Symptom
 
@@ -40,9 +40,9 @@ On `main`, running `npm install` or adding a devDependency (such as `wdio-obsidi
 
 ## Order of Work
 
-1. `[ ]` Pin `"obsidian"` and align `@codemirror/state`, `@codemirror/view`, and `@codemirror/language` in `package.json`.
-2. `[ ]` Regenerate `package-lock.json` via `npm install` and verify zero `ERESOLVE` warnings/errors.
-3. `[ ]` Check `src/editor.ts` and `test/editor.test.ts` against the updated types.
+1. `[x]` Pin `"obsidian"` and align `@codemirror/state`, `@codemirror/view`, and `@codemirror/language` in `package.json`.
+2. `[x]` Regenerate `package-lock.json` via `npm install` and verify zero `ERESOLVE` warnings/errors.
+3. `[x]` Check `src/editor.ts` and `test/editor.test.ts` against the updated types.
 
 ## Verification Plan
 
