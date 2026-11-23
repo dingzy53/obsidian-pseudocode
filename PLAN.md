@@ -1,53 +1,21 @@
-# PLAN: fix obsidian / CodeMirror peer dependency conflict on fresh install
+# PLAN: QA audit fixes (plain-pseudocode)
 
-> Branch: `fix/codemirror-peer-deps` (from `main`) · Date: 2026-11-23 · Status: Implemented and verified.
+> Branch: `fix/qa-audit-fixes` (from `fix/codemirror-peer-deps`) · Date: 2026-11-24 · Status: Implemented and verified.
 
-## Context & Symptom
+## Scope from `OBSIDIAN_PLUGINS_QA_REPORT.md`
 
-On `main`, running `npm install` or adding a devDependency (such as `wdio-obsidian-service`) fails with `npm error code ERESOLVE`:
-
-- Root `package.json` pins `"@codemirror/state": "6.5.0"` and `"@codemirror/view": "6.38.6"`, while declaring `"obsidian": "latest"`.
-- `npm` resolves `"obsidian": "latest"` to `1.14.4`, whose `peerDependencies` require `@codemirror/state@"6.7.6"` and `@codemirror/view@"6.43.13"`, causing `ERESOLVE unable to resolve dependency tree`.
-
-## Verified Root Cause (`package.json` & `package-lock.json`)
-
-1. `package.json:30-43` specifies:
-   - `"@codemirror/language": "^6.11.0"`
-   - `"@codemirror/state": "6.5.0"`
-   - `"@codemirror/view": "6.38.6"`
-   - `"obsidian": "latest"`
-2. `package-lock.json` originally locked `obsidian@1.13.1` (whose `peerDependencies` matched `@codemirror/state: "6.5.0"` and `@codemirror/view: "6.38.6"`).
-3. After `obsidian@1.14.4` became `latest` on npm with updated CodeMirror peer pins (`6.7.6` / `6.43.13`), floating `"obsidian": "latest"` in `package.json` broke clean dependency resolution whenever `npm install` re-evaluates `package.json`.
-
-## Proposed Fix Design
-
-### 1. Pin `"obsidian"` instead of floating `"latest"` (`package.json`)
-
-- Replace `"obsidian": "latest"` with an explicit version pin in `devDependencies` (recommended: `"1.14.4"` to match `obsidian-equation-refs`, or `"1.13.1"` if preferring to lock types to `minAppVersion: "1.13.0"`).
-
-### 2. Align CodeMirror `devDependencies` with the pinned `obsidian` peerDependencies (`package.json`)
-
-- For `"obsidian": "1.14.4"`:
-  - `"@codemirror/state": "6.7.6"`
-  - `"@codemirror/view": "6.43.13"`
-  - `"@codemirror/language": "^6.13.1"`
-- Check `src/editor.ts` and `test/editor.test.ts` for any CodeMirror 6 API or type differences after updating.
-- Keep `manifest.json` `minAppVersion: "1.13.0"` unchanged unless a newer runtime Obsidian API is introduced, and keep `@codemirror/*` external in `esbuild.config.mjs` so runtime continues using Obsidian's bundled CodeMirror.
-
-### 3. Regenerate `package-lock.json` cleanly
-
-- Run `npm install` (without `--legacy-peer-deps` or `--force`) so `package-lock.json` resolves cleanly on any machine and in CI.
+- **P3 / Snippet & command UX**:
+  - Remove the trailing space in the `mk` snippet replacement (`"$${0}$$1"` instead of `"$${0}$ $1"`) so leaving math via Tab does not insert an extra space (`src/snippets.ts`, `README.md`, `test/snippets.test.ts`).
+  - Make **Insert pseudocode block** never split a non-empty line mid-word and always surround inserted blocks with blank lines (`src/link.ts`, `src/main.ts`, `test/link.test.ts`).
+  - Replace raw V8 `JSON.parse` errors in snippet settings with a clear user-facing syntax message (`src/snippets.ts`, `test/snippets.test.ts`).
+  - Require Tab (drop `A`) on the inside-block `algo` snippet (`{ "trigger": "algo", ..., "options": "b" }`) so typing `algo ` inside an algorithm never silently converts it into a class block (`src/snippets.ts`, `README.md`, `test/snippets.test.ts`).
+- **Wording & spelling consistency**:
+  - Change `"Restore default"` to `"Restore defaults"` under Snippets (`src/settings-tab.ts`).
+  - Normalize British spelling to US English across `manifest.json`, `package.json`, and `README.md` (including `#colors` anchors).
 
 ## Order of Work
 
-1. `[x]` Pin `"obsidian"` and align `@codemirror/state`, `@codemirror/view`, and `@codemirror/language` in `package.json`.
-2. `[x]` Regenerate `package-lock.json` via `npm install` and verify zero `ERESOLVE` warnings/errors.
-3. `[x]` Check `src/editor.ts` and `test/editor.test.ts` against the updated types.
-
-## Verification Plan
-
-- `rm -rf node_modules && npm ci`
-- `npm install --package-lock-only` (confirm clean peer resolution without `--legacy-peer-deps`)
-- `npm run lint`
-- `npm test` (`node --experimental-strip-types --test "test/*.test.ts"`)
-- `npm run build` (`tsc -noEmit -skipLibCheck && node esbuild.config.mjs production`)
+1. `[x]` Update default snippets and friendly JSON parse errors (`src/snippets.ts`) plus tests (`test/snippets.test.ts`).
+2. `[x]` Extract and wire pure `insertAlgoBlock` (`src/link.ts`, `src/main.ts`) plus tests (`test/link.test.ts`).
+3. `[x]` Update settings button text (`src/settings-tab.ts`) and US English wording/anchors (`manifest.json`, `package.json`, `README.md`).
+4. `[x]` Run `npm run lint && npm test && npm run build`, mark plan verified, and push `fix/qa-audit-fixes`.
