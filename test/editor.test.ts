@@ -148,20 +148,20 @@ test("snippets work on every line of the block, header and comments included", (
     return e.show();
   };
   assert.equal(typed("```algo\n|\n```", "for "), "```algo\nfor [i] from 1 to n:\n    \n```");
-  assert.equal(typed("```algo\nSort\nInput: array |\nOutput: A\n```", "mk"), "```algo\nSort\nInput: array $|$ \nOutput: A\n```");
-  assert.equal(steps(typed(block("x <- 1 // |"), "mk")), "x <- 1 // $|$ ");
+  assert.equal(typed("```algo\nSort\nInput: array |\nOutput: A\n```", "mk"), "```algo\nSort\nInput: array $|$\nOutput: A\n```");
+  assert.equal(steps(typed(block("x <- 1 // |"), "mk")), "x <- 1 // $|$");
 });
 
 test("default snippet: mk makes inline math and Tab leaves it", () => {
   const e = editor(block("x <- |"));
   e.type("mk");
-  assert.equal(steps(e.show()), "x <- $|$ ");
+  assert.equal(steps(e.show()), "x <- $|$");
   e.type("a_i");
   assert.ok(snippetTab(e.view, DEFAULTS));
-  assert.equal(steps(e.show()), "x <- $a_i$ |");
+  assert.equal(steps(e.show()), "x <- $a_i$|");
   // Nothing is left to fill in, so Tab is free again and typing is just typing.
   assert.equal(snippetTab(e.view, DEFAULTS), false);
-  e.type("+ 1");
+  e.type(" + 1");
   assert.equal(steps(e.show()), "x <- $a_i$ + 1|");
 });
 
@@ -174,17 +174,17 @@ test("mk does not fire inside math", () => {
 test("a snippet inside a tabstop of another: Tab returns to the outer one", () => {
   const e = editor(block("|"));
   e.type("for mk");
-  assert.equal(steps(e.show()), "for $|$  from 1 to n:\n    ");
+  assert.equal(steps(e.show()), "for $|$ from 1 to n:\n    ");
   e.type("i");
   snippetTab(e.view, DEFAULTS);
-  assert.equal(steps(e.show()), "for $i$ | from 1 to n:\n    ");
+  assert.equal(steps(e.show()), "for $i$| from 1 to n:\n    ");
   snippetTab(e.view, DEFAULTS);
-  assert.equal(steps(e.show()), "for $i$  from [1] to n:\n    ");
+  assert.equal(steps(e.show()), "for $i$ from [1] to n:\n    ");
   snippetTab(e.view, DEFAULTS);
-  assert.equal(steps(e.show()), "for $i$  from 1 to [n]:\n    ");
+  assert.equal(steps(e.show()), "for $i$ from 1 to [n]:\n    ");
   // Into the loop, and the snippet is over.
   assert.ok(snippetTab(e.view, DEFAULTS));
-  assert.equal(steps(e.show()), "for $i$  from 1 to n:\n    |");
+  assert.equal(steps(e.show()), "for $i$ from 1 to n:\n    |");
   assert.equal(snippetTab(e.view, DEFAULTS), false);
 });
 
@@ -333,10 +333,10 @@ test("default snippet: algo + space in the note makes a block, Enter walks the h
   e.type("A");
   assert.ok(smartEnter(e.view));
   assert.ok(smartEnter(e.view));
-  assert.equal(e.show(), "Some text\n```algo\nSort\nInput: array $A$ \nOutput: |\n\n```\nmore");
+  assert.equal(e.show(), "Some text\n```algo\nSort\nInput: array $A$\nOutput: |\n\n```\nmore");
   e.type("sorted");
   assert.ok(smartEnter(e.view));
-  assert.equal(e.show(), "Some text\n```algo\nSort\nInput: array $A$ \nOutput: sorted\n|\n```\nmore");
+  assert.equal(e.show(), "Some text\n```algo\nSort\nInput: array $A$\nOutput: sorted\n|\n```\nmore");
   // The block is set up: from here on Enter and Tab are the usual ones.
   e.type("while x do");
   assert.ok(smartEnter(e.view));
@@ -364,8 +364,8 @@ test("the block shortcut only runs in the note text, at the start of a line", ()
   };
   assert.equal(typed("the |", "algo "), "the algo |");
   assert.equal(typed("|", "algorithm "), "algorithm |");
-  // Inside a block, the same word starts the next algorithm instead (see the class block tests).
-  assert.equal(steps(typed(block("|"), "algo ")), "---\n|\nInput: \nOutput: \n");
+  // Inside a block, "algo " stays literal; Tab after "algo" starts the next algorithm (see class block tests).
+  assert.equal(steps(typed(block("|"), "algo ")), "algo |");
   assert.equal(typed("```python\n|\n```", "algo "), "```python\nalgo |\n```");
   assert.equal(typed("```\n|\n```", "algo "), "```\nalgo |\n```");
   // After a closed block the note text starts again.
@@ -383,9 +383,10 @@ test("a fence inside a longer fence does not start a block", () => {
   assert.equal(steps(press("~~~algo\nT\nI\nO\n```\nwhile x do|\n~~~").slice(2)), "```\nwhile x do\n    |");
 });
 
-test("a class block: algo + space starts the next algorithm, and Enter walks its header", () => {
+test("a class block: algo + Tab starts the next algorithm, and Enter walks its header", () => {
   const e = editor("```algo\nQueue\nData: H\n---\nSiftUp(i)\nInput: i\nOutput: -\nx <- 1\n|\n```");
-  e.type("algo ");
+  e.type("algo");
+  assert.ok(snippetTab(e.view, DEFAULTS));
   assert.equal(e.show(), "```algo\nQueue\nData: H\n---\nSiftUp(i)\nInput: i\nOutput: -\nx <- 1\n---\n|\nInput: \nOutput: \n\n```");
   e.type("Insert(p)");
   assert.ok(smartEnter(e.view));

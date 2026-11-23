@@ -99,3 +99,43 @@ export function blockLink(lines: string[], at: number): BlockLink | null {
   const gap = next !== undefined && next.trim() !== "";
   return { id, alias: alias || id, insert: { line: fence.close, text: `\n^${id}${gap ? "\n" : ""}` } };
 }
+
+export interface BlockInsertion {
+  from: { line: number; ch: number };
+  text: string;
+  cursor: { line: number; ch: number };
+}
+
+const BLOCK_TEMPLATE = "```algo\n\nInput: \nOutput: \n\n```\n";
+
+/** Places a blank-line-padded pseudocode block without splitting an active line mid-text. */
+export function insertAlgoBlock(lines: string[], cursor: { line: number; ch: number }): BlockInsertion {
+  const lineText = lines[cursor.line] ?? "";
+  const nonEmpty = lineText.trim() !== "";
+
+  if (!nonEmpty) {
+    const prevNonEmpty = cursor.line > 0 && (lines[cursor.line - 1] ?? "").trim() !== "";
+    const before = prevNonEmpty ? "\n" : "";
+    return {
+      from: { line: cursor.line, ch: lineText.length },
+      text: before + BLOCK_TEMPLATE,
+      cursor: { line: cursor.line + (before ? 1 : 0) + 1, ch: 0 },
+    };
+  }
+
+  if (cursor.ch === 0) {
+    const prevNonEmpty = cursor.line > 0 && (lines[cursor.line - 1] ?? "").trim() !== "";
+    const before = prevNonEmpty ? "\n" : "";
+    return {
+      from: { line: cursor.line, ch: 0 },
+      text: before + BLOCK_TEMPLATE + "\n",
+      cursor: { line: cursor.line + (before ? 1 : 0) + 1, ch: 0 },
+    };
+  }
+
+  return {
+    from: { line: cursor.line, ch: lineText.length },
+    text: "\n\n" + BLOCK_TEMPLATE,
+    cursor: { line: cursor.line + 3, ch: 0 },
+  };
+}

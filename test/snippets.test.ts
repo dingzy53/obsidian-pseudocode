@@ -19,7 +19,7 @@ test("default definitions load", () => {
       ["for ", true, true, null, false],
       ["mk", true, false, "text", false],
       ["algo ", true, true, null, true],
-      ["algo ", true, true, null, false],
+      ["algo", false, true, null, false],
     ],
   );
   // The loop line ends with a colon and leaves an indented line below it.
@@ -27,10 +27,10 @@ test("default definitions load", () => {
   // Inside a block the same word makes the next algorithm of a class block.
   assert.equal(expand(snippets[3].replacement, [], "", "").text, "---\n\nInput: \nOutput: \n");
   assert.equal(expand(snippets[2].replacement, [], "", "").text, "```algo\n\nInput: \nOutput: \n\n```");
-  // Dollar, tabstop 0, dollar, space, tabstop 1.
+  // Dollar, tabstop 0, dollar, tabstop 1 (no trailing space).
   assert.deepEqual(expand(snippets[1].replacement, [], "", ""), {
-    text: "$$ ",
-    stops: [[{ from: 1, to: 1 }], [{ from: 3, to: 3 }]],
+    text: "$$",
+    stops: [[{ from: 1, to: 1 }], [{ from: 2, to: 2 }]],
   });
 });
 
@@ -89,7 +89,8 @@ test("mistakes are reported and nothing is half-applied", () => {
     assert.equal(r.snippets.length, 0);
     return r.error ?? "";
   };
-  assert.ok(bad("[{"));
+  assert.match(bad("[{"), /Invalid JSON syntax/);
+  assert.doesNotMatch(bad("x[ {"), /Unexpected token/);
   assert.match(bad("{}"), /list of snippets/);
   assert.match(bad('[{ "trigger": "a", "replacement": "b" }, { "trigger": "" }]'), /Snippet 2: "trigger"/);
   assert.match(bad('[{ "trigger": "a" }]'), /Snippet 1: "replacement"/);

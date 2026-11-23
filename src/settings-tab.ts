@@ -149,7 +149,7 @@ export class AlgoSettingTab extends PluginSettingTab {
 
     setting.settingEl.addClass("algo-snippets-row");
     setting.addButton((b) =>
-      b.setButtonText("Restore default").onClick(() => {
+      b.setButtonText("Restore defaults").onClick(() => {
         area.setValue(DEFAULT_SNIPPETS);
         change(DEFAULT_SNIPPETS);
       }),
