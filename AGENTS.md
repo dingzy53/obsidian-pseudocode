@@ -79,3 +79,19 @@ The workflow checks that tag, `manifest.json`, `package.json` and `versions.json
 ## Submitting to the community directory (first release only)
 
 Prerequisites are already in place: `README.md`, `LICENSE`, `manifest.json` at the repo root, and a release whose tag equals the manifest version. Then sign in at https://community.obsidian.md, link the GitHub account, and add the plugin. Later releases need no resubmission. The directory reads `manifest.json` from the default branch, and the `id` must be unique and must not contain `obsidian`.
+
+## Cross-Platform E2E Testing
+
+Real-Obsidian E2E tests live in `test/e2e/**/*.e2e.ts` and run against `test-vault/` via WebdriverIO (`wdio-obsidian-service`).
+
+```bash
+npm run build            # Typecheck + production bundle (main.js)
+npm run check:mobile     # Mobile compatibility check (skips automatically if isDesktopOnly: true)
+npm run test:unit        # Run unit tests
+npm run test:e2e:fast    # Desktop latest Obsidian only (fast agent verification)
+npm run test:e2e:mobile  # Desktop emulated mobile (390x844) latest Obsidian
+npm run test:e2e:android # Real Android APK via Appium + AVD named obsidian_test
+npm run test:e2e         # Full matrix configured in wdio.conf.mts
+```
+
+GitHub Actions workflows in `.github/workflows/e2e.yml` and `.github/workflows/check-new-obsidian.yml` automatically read `manifest.json` (`isDesktopOnly`) to run Linux/Windows/macOS desktop tests (plus mobile emulation and Android API 36 emulator when `isDesktopOnly: false`).

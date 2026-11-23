@@ -3,3 +3,8 @@ main.js
 *.map
 data.json
 .DS_Store
+
+# WebdriverIO E2E
+.obsidian-cache/
+obsidian-versions-lock.txt
+test-vault/.obsidian/
