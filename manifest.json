@@ -1,7 +1,7 @@
 {
   "id": "plain-pseudocode",
   "name": "Plain Pseudocode",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "minAppVersion": "1.13.0",
   "description": "Write pseudocode as plain indented text and render it as a centered, line-numbered text block. No LaTeX, no images.",
   "author": "Ding Zheng Yuan",
