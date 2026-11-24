@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { blockLink, findFences, idFromTitle } from "../src/link.ts";
+import { blockLink, findFences, idFromTitle, insertAlgoBlock } from "../src/link.ts";
 
 const lines = (text: string) => text.split("\n");
 
@@ -116,4 +116,33 @@ test("the title of a class block is its first line; untitled blocks fall back", 
 test("only closed algo blocks can be linked", () => {
   assert.equal(blockLink(lines("```python\nx\n```"), 1), null);
   assert.equal(blockLink(lines("```algo\nA\nI\nO\nx"), 1), null);
+});
+
+test("insertAlgoBlock surrounds blocks with blank lines and never splits a line mid-word", () => {
+  const apply = (src: string, line: number, ch: number) => {
+    const doc = src.split("\n");
+    const ins = insertAlgoBlock(doc, { line, ch });
+    const offset =
+      doc
+        .slice(0, ins.from.line)
+        .map((l) => l.length + 1)
+        .reduce((a, b) => a + b, 0) + ins.from.ch;
+    const result = src.slice(0, offset) + ins.text + src.slice(offset);
+    return { text: result, cursor: ins.cursor };
+  };
+
+  // Mid-word insertion moves below the current line with blank lines on both sides.
+  const mid = apply("middle of a line.\nmore", 0, 8);
+  assert.equal(mid.text, "middle of a line.\n\n```algo\n\nInput: \nOutput: \n\n```\n\nmore");
+  assert.deepEqual(mid.cursor, { line: 3, ch: 0 });
+
+  // Blank line between paragraphs adds padding before and after.
+  const blank = apply("above\n\nbelow", 1, 0);
+  assert.equal(blank.text, "above\n\n```algo\n\nInput: \nOutput: \n\n```\n\nbelow");
+  assert.deepEqual(blank.cursor, { line: 3, ch: 0 });
+
+  // Start of a non-empty line leaves a blank line before and after.
+  const start = apply("above\nbelow", 1, 0);
+  assert.equal(start.text, "above\n\n```algo\n\nInput: \nOutput: \n\n```\n\nbelow");
+  assert.deepEqual(start.cursor, { line: 3, ch: 0 });
 });

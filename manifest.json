@@ -3,7 +3,7 @@
   "name": "Plain Pseudocode",
   "version": "0.1.4",
   "minAppVersion": "1.13.0",
-  "description": "Write pseudocode as plain indented text and render it as a centred, line-numbered text block. No LaTeX, no images.",
+  "description": "Write pseudocode as plain indented text and render it as a centered, line-numbered text block. No LaTeX, no images.",
   "author": "Ding Zheng Yuan",
   "authorUrl": "https://github.com/dingzy53",
   "isDesktopOnly": false

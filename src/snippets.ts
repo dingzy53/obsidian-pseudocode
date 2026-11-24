@@ -38,14 +38,14 @@ export const DEFAULT_SNIPPETS = `[
   { "trigger": "for ", "replacement": "for \${0:i} from \${1:1} to \${2:n}:\\n\\t$3", "options": "Ab" },
 
   // Type "mk" for inline math. Tab leaves the math.
-  { "trigger": "mk", "replacement": "$\${0}$ $1", "options": "At" },
+  { "trigger": "mk", "replacement": "$\${0}$$1", "options": "At" },
 
   // In the note: type "algo" and a space at the start of a line for a new block.
   // Enter or Tab moves from the title to the input, the output and the first step.
   { "trigger": "algo ", "replacement": "\`\`\`algo\\n$0\\nInput: $1\\nOutput: $2\\n$3\\n\`\`\`", "options": "Abn" },
 
-  // Inside a block: the same word starts the next algorithm of a class block.
-  { "trigger": "algo ", "replacement": "---\\n$0\\nInput: $1\\nOutput: $2\\n$3", "options": "Ab" }
+  // Inside a block: type "algo" and press Tab at the start of a line for the next algorithm.
+  { "trigger": "algo", "replacement": "---\\n$0\\nInput: $1\\nOutput: $2\\n$3", "options": "b" }
 ]
 `;
 
@@ -113,8 +113,13 @@ function toSnippet(raw: unknown, n: number): Snippet {
 
 // On any mistake the whole text is rejected, so a typo never half-applies.
 export function parseSnippets(source: string): { snippets: Snippet[]; error: string | null } {
+  let data: unknown;
   try {
-    const data: unknown = source.trim() ? JSON.parse(relax(source)) : [];
+    data = source.trim() ? JSON.parse(relax(source)) : [];
+  } catch {
+    return { snippets: [], error: "Invalid JSON syntax. Check commas, quotes and brackets." };
+  }
+  try {
     if (!Array.isArray(data)) throw new Error("Expected a list of snippets inside [ ]");
     return { snippets: data.map((raw, i) => toSnippet(raw, i + 1)), error: null };
   } catch (e) {

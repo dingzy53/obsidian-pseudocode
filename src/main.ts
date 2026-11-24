@@ -1,13 +1,11 @@
 import { MarkdownRenderChild, Notice, Plugin, finishRenderMath, loadMathJax, renderMath } from "obsidian";
 import { algoEditor } from "./editor.ts";
-import { blockLink } from "./link.ts";
+import { blockLink, insertAlgoBlock } from "./link.ts";
 import { parse, parseGroup } from "./parse.ts";
 import { render, type MathFn } from "./render.ts";
 import { DEFAULT_SETTINGS, loadSettings, renderOptions, storedSettings, type Settings } from "./settings.ts";
 import { AlgoSettingTab } from "./settings-tab.ts";
 import { parseSnippets, type Snippet } from "./snippets.ts";
-
-const TEMPLATE = "```algo\n\nInput: \nOutput: \n\n```\n";
 
 // One rendered block. Kept by the plugin while it is on screen, so a settings change can redraw it.
 class AlgoBlock extends MarkdownRenderChild {
@@ -71,11 +69,9 @@ export default class PlainPseudocode extends Plugin {
       id: "insert-pseudocode-block",
       name: "Insert pseudocode block",
       editorCallback: (editor) => {
-        const cur = editor.getCursor();
-        const lead = cur.ch > 0 && editor.getLine(cur.line).trim() ? "\n" : "";
-        editor.replaceSelection(lead + TEMPLATE);
-        // The cursor waits on the empty title line.
-        editor.setCursor({ line: cur.line + (lead ? 1 : 0) + 1, ch: 0 });
+        const ins = insertAlgoBlock(editor.getValue().split("\n"), editor.getCursor());
+        editor.replaceRange(ins.text, ins.from);
+        editor.setCursor(ins.cursor);
       },
     });
 

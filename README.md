@@ -5,7 +5,7 @@
 [![Obsidian](https://img.shields.io/badge/Obsidian-1.13.0%2B-7c3aed?logo=obsidian)](https://obsidian.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Write pseudocode as plain indented text in Obsidian and get a centred, line-numbered block with bold, coloured keywords, indentation guides and right-aligned comments. Rendering is pure text: no LaTeX, no images, no dependencies.
+Write pseudocode as plain indented text in Obsidian and get a centered, line-numbered block with bold, colored keywords, indentation guides and right-aligned comments. Rendering is pure text: no LaTeX, no images, no dependencies.
 
 ````
 ```algo
@@ -29,8 +29,8 @@ return -1
 
 ## Features
 
-- Plain indented text in, a centred, line-numbered block out.
-- Bold, coloured keywords, indentation guides and right-aligned comments.
+- Plain indented text in, a centered, line-numbered block out.
+- Bold, colored keywords, indentation guides and right-aligned comments.
 - Several related algorithms in one box ([class blocks](#class-blocks)).
 - Snippets and smart Enter for fast typing ([quick input](#quick-input)).
 - One command to link to a block ([linking](#linking-to-a-block)).
@@ -67,7 +67,7 @@ The source stays readable as plain text. Nothing below needs a backslash command
 
 - **Line 1** is the title, **line 2** the input and **line 3** the output. The `Input:` and `Output:` labels are optional, and an empty value or `-` hides the row.
 - Write another label to have it shown instead: `Require:`, `Ensure:`, `Data:`, `Result:`, `Parameters:`, `Returns:`, `Precondition:`, `Postcondition:` or `Globals:`.
-- More labelled rows may follow line 3. The first line without one of these labels is step 1.
+- More labeled rows may follow line 3. The first line without one of these labels is step 1.
 - Line 1 may stay empty: a block that starts with `Input:` (or another label) simply has no title.
 
 ````
@@ -86,14 +86,14 @@ Each non-blank line is a numbered step, and indentation (tabs, 2 or 4 spaces) se
 
 | You write | You get |
 | --- | --- |
-| A keyword (see [Keywords](#keywords)) | Bold, in the colour of its kind. |
+| A keyword (see [Keywords](#keywords)) | Bold, in the color of its kind. |
 | `<-` `->` `<->` `<=` `>=` `!=` `=>` `<=>` `...` | ← → ↔ ≤ ≥ ≠ ⇒ ⇔ … |
-| `42`, `3.14` | A number, coloured. |
+| `42`, `3.14` | A number, colored. |
 | `// text` | A muted `▷ text` comment. After a step it is aligned to the right edge of the block. On a line of its own it stays in place. |
 | `$x_i$` | Obsidian's built-in math. Use `\$` for a literal dollar sign. |
-| `Merge-Sort(A)` | A capitalised name followed by `(` is shown in small caps. |
+| `Merge-Sort(A)` | A capitalized name followed by `(` is shown in small caps. |
 | `function merge_sort(A)` | The name after `function` or `procedure` is shown in small caps, and so are later calls such as `merge_sort(B)`. |
-| `"if not found"` | Text in double quotes is left alone: no bold keywords inside. Coloured. |
+| `"if not found"` | Text in double quotes is left alone: no bold keywords inside. Colored. |
 | `` `x` `` | Inline code. |
 
 ### Keywords
@@ -140,12 +140,12 @@ SiftUp(size)
 
 <img src="docs/images/class-block.png" alt="A rendered class block" width="322">
 
-- The head is the title on its first line, then labelled rows such as `Data:` or `Globals:`. Any other line there is shown as a short note. It has no `Input` and `Output` of its own, and it may be empty.
+- The head is the title on its first line, then labeled rows such as `Data:` or `Globals:`. Any other line there is shown as a short note. It has no `Input` and `Output` of its own, and it may be empty.
 - Each algorithm after a `---` is written exactly like a block of its own: title, input, output, steps.
 - It is one box, so every algorithm has the same width, the step text starts in the same column and comments end at the same right edge.
 - Step numbers start again at 1 in every algorithm.
 - A function declared in one algorithm is styled where the others call it.
-- Inside a block, type `algo` and a space at the start of a line to start the next algorithm. It writes `---` and the title, input and output rows.
+- Inside a block, type `algo` and press **Tab** at the start of a line to start the next algorithm. It writes `---` and the title, input and output rows.
 
 ### Linking to a block
 
@@ -173,11 +173,11 @@ You do not need to write the identifier by hand. With the cursor in a block, run
 
 An algorithm inside a class block cannot be linked on its own: Obsidian cannot see inside a code block. Link the class, or keep the algorithm in a block of its own.
 
-### Colours
+### Colors
 
-Keywords are bold, as in LaTeX, and each kind of token also gets a colour. The colours are the ones your theme uses for code, so they fit light and dark themes alike. Turn **Syntax colors** off in the settings for the plain black-and-white look.
+Keywords are bold, as in LaTeX, and each kind of token also gets a color. The colors are the ones your theme uses for code, so they fit light and dark themes alike. Turn **Syntax colors** off in the settings for the plain black-and-white look.
 
-To pick your own colours, set these variables from a CSS snippet:
+To pick your own colors, set these variables from a CSS snippet:
 
 ```css
 .algo-colors {
@@ -198,7 +198,7 @@ To pick your own colours, set these variables from a CSS snippet:
 - Or run **Insert pseudocode block** from the command palette (bind it to a hotkey under **Settings → Hotkeys**). It inserts the same block, with the cursor on the empty title line.
 - Inside an `algo` block, **Enter** keeps the indentation. It adds a level after a line ending in `do`, `then`, `else`, `repeat`, `loop`, `begin` or `:`, and after a loop or branch header such as `for i from 1 to n` or `while x > 0`.
 - Type `for` and a space (or `for` and **Tab**) at the start of a line to get `for i from 1 to n:` and an indented line below it, with `i` selected. Type over it, then press **Tab** for `1`, again for `n`, and once more to move into the loop.
-- Inside a block, `algo` and a space starts the next algorithm of a [class block](#class-blocks).
+- Inside a block, `algo` and **Tab** at the start of a line starts the next algorithm of a [class block](#class-blocks).
 - Type `mk` to get `$$` with the cursor between the dollars. **Tab** jumps out of the math.
 - `algo` (two of them: in the note and inside a block), `for` and `mk` are the built-in snippets. You can change them and add your own.
 
@@ -263,12 +263,12 @@ Paste this over the definitions to try everything out.
   // Enter or Tab moves from the title ($0) to the input, the output and the first step.
   { "trigger": "algo ", "replacement": "```algo\\n$0\\nInput: $1\\nOutput: $2\\n$3\\n```", "options": "Abn" },
 
-  // The same word inside a block starts the next algorithm of a class block (no "n" option).
-  { "trigger": "algo ", "replacement": "---\\n$0\\nInput: $1\\nOutput: $2\\n$3", "options": "Ab" },
+  // The same word inside a block + Tab starts the next algorithm of a class block (no "n" or "A" option).
+  { "trigger": "algo", "replacement": "---\\n$0\\nInput: $1\\nOutput: $2\\n$3", "options": "b" },
 
   // Another default. "t" keeps it out of math, so $mk$ can still be typed.
   // Result: $$ with the cursor between the dollars, then Tab to continue after the math.
-  { "trigger": "mk", "replacement": "$${0}$ $1", "options": "At" },
+  { "trigger": "mk", "replacement": "$${0}$$1", "options": "At" },
 
   // No "A": type "fore" and press Tab.
   // \n starts a new line, \t indents it. $2 is an empty tabstop inside the loop body.
@@ -316,12 +316,12 @@ Paste this over the definitions to try everything out.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
-| Alignment | Center | Puts the block on the left, in the centre or on the right of the note. |
+| Alignment | Center | Puts the block on the left, in the center or on the right of the note. |
 | Font size | 100 | Percent of the note's text size. |
 | Font | Text font | The theme's text font or its monospace font. |
 | Line numbers | On | Numbers each step. |
 | Indent guides | On | Vertical lines that mark each nesting level. |
-| Syntax colors | On | Colours each kind of token. Off gives black and white. See [Colours](#colours). |
+| Syntax colors | On | Colors each kind of token. Off gives black and white. See [Colors](#colors). |
 | Comments | Aligned to the right | Or right after the step, as in earlier versions. |
 | Comment marker | `▷` | Shown in place of `//`. |
 | Keywords | five lists | The words to show in bold. See [Keywords](#keywords). |
@@ -334,7 +334,7 @@ Changes apply at once to every block that is open. Every setting can be found wi
 
 ## Styling
 
-Colours and fonts follow your theme. Override any `.algo-*` rule from a CSS snippet (see `styles.css`), or just the [colour variables](#colours).
+Colors and fonts follow your theme. Override any `.algo-*` rule from a CSS snippet (see `styles.css`), or just the [color variables](#colors).
 
 ## Privacy and security
 
